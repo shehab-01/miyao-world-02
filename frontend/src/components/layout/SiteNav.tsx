@@ -1,10 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Facebook, Instagram, Search, Twitter } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { Category } from "@/lib/catalog";
 import { bankAccountInfo, secondaryNav, socialLinks, utilityNav, type NavItem } from "@/lib/site-config";
+
+// Pages a link stands for besides its own: /order redirects to the order history
+const alsoMatches: Record<string, string[]> = { "/order": ["/mypage/orders"] };
+
+/** The href of the link for the current page: the longest one the path is in, so EDIT wins over MYPAGE. */
+function activeHref(pathname: string, hrefs: string[]) {
+  let best: string | null = null;
+  let bestLength = 0;
+  for (const href of hrefs) {
+    for (const path of [href, ...(alsoMatches[href] ?? [])]) {
+      const matches = pathname === path || pathname.startsWith(`${path}/`);
+      if (matches && path.length > bestLength) {
+        best = href;
+        bestLength = path.length;
+      }
+    }
+  }
+  return best;
+}
 
 export default function SiteNav({
   categories,
@@ -14,6 +34,13 @@ export default function SiteNav({
   onNavigate?: () => void;
 }) {
   const { isLoggedIn, logout } = useAuth();
+  const pathname = usePathname();
+  const utilityRows = utilityNav[isLoggedIn ? "member" : "guest"];
+  const activeUtility = activeHref(
+    pathname,
+    utilityRows.flat().filter((item) => !item.action).map((item) => item.href),
+  );
+  const activeCategory = activeHref(pathname, categories.map((category) => `/shop/${category.slug}`));
   // SHOP's submenu lists the categories managed in /admin/categories
   const primaryNav: NavItem[] = [
     {
@@ -29,7 +56,7 @@ export default function SiteNav({
   return (
     <>
       <div className="space-y-[11px] text-[12px] leading-none tracking-[0.05em] text-ink-muted">
-        {utilityNav[isLoggedIn ? "member" : "guest"].map((row, i) => (
+        {utilityRows.map((row, i) => (
           <div key={i} className="flex gap-[6px]">
             {row.map((item, j) => (
               <span key={item.label} className="flex gap-[6px]">
@@ -46,7 +73,12 @@ export default function SiteNav({
                     {item.label}
                   </button>
                 ) : (
-                  <Link href={item.href} onClick={onNavigate} className="hover:text-ink">
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={item.href === activeUtility ? "page" : undefined}
+                    className={`hover:text-ink ${item.href === activeUtility ? "text-ink" : ""}`}
+                  >
                     {item.label}
                   </Link>
                 )}
@@ -74,7 +106,10 @@ export default function SiteNav({
                       <Link
                         href={child.href}
                         onClick={onNavigate}
-                        className="block text-[12px] leading-none text-ink-muted hover:text-ink"
+                        aria-current={child.href === activeCategory ? "page" : undefined}
+                        className={`block text-[12px] leading-none hover:text-ink ${
+                          child.href === activeCategory ? "text-ink" : "text-ink-muted"
+                        }`}
                       >
                         {child.label}
                       </Link>
