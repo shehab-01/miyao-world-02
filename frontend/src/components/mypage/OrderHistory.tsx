@@ -1,19 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
-import { mockOrders } from "@/lib/site-config";
+import { formatDate, orderStatusNames, type Order } from "@/lib/shop";
 
 const headers = ["주문일자 [주문번호]", "이미지", "상품정보", "수량", "상품구매금액", "주문처리상태"];
 
-export default function OrderHistory() {
+export default function OrderHistory({ title, orders }: { title: string; orders: Order[] | null }) {
   return (
     <section>
-      <h2 className="text-[14px] text-ink-soft">최근 주문내역</h2>
+      <h2 className="text-[14px] text-ink-soft">{title}</h2>
 
-      {mockOrders.length === 0 ? (
+      {orders === null || orders.length === 0 ? (
         <div className="mt-[14px] border-y border-hairline">
           <p className="py-[40px] text-center text-[13px] text-ink-muted">
-            주문 내역이 없습니다.
+            {orders === null ? "불러오는 중…" : "주문 내역이 없습니다."}
           </p>
         </div>
       ) : (
@@ -39,59 +39,73 @@ export default function OrderHistory() {
             </thead>
 
             <tbody>
-              {mockOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="border-b border-hairline text-center align-middle"
-                >
-                  <td className="py-[16px]">
-                    {order.date}
-                    <br />
-                    <span className="text-ink-muted">[{order.id}]</span>
-                  </td>
+              {orders.flatMap((order) =>
+                order.items.map((item, index) => (
+                  <tr
+                    key={`${order.order_number}-${index}`}
+                    className="border-b border-hairline text-center align-middle"
+                  >
+                    {/* One order, several items: the order cells span its rows */}
+                    {index === 0 && (
+                      <td rowSpan={order.items.length} className="border-r border-hairline py-[16px]">
+                        {formatDate(order.created_at)}
+                        <br />
+                        <Link
+                          href={`/mypage/orders/${order.order_number}`}
+                          className="text-ink-muted underline-offset-2 hover:underline"
+                        >
+                          [{order.order_number}]
+                        </Link>
+                      </td>
+                    )}
 
-                  <td className="py-[16px]">
-                    <Link href={`/product/${order.slug}`} className="block px-[10px]">
-                      <span
-                        className="relative block overflow-hidden bg-placeholder"
-                        style={{ aspectRatio: "1.625" }}
-                      >
-                        {order.image && (
-                          <Image
-                            src={order.image}
-                            alt={order.name}
-                            fill
-                            sizes="72px"
-                            className="object-cover"
-                          />
-                        )}
-                      </span>
-                    </Link>
-                  </td>
+                    <td className="py-[16px]">
+                      <Link href={`/mypage/orders/${order.order_number}`} className="block px-[10px]">
+                        <span
+                          className="relative block overflow-hidden bg-placeholder"
+                          style={{ aspectRatio: "0.8" }}
+                        >
+                          {item.image_url && (
+                            <Image
+                              src={item.image_url}
+                              alt={item.product_name}
+                              fill
+                              unoptimized
+                              sizes="72px"
+                              className="object-cover"
+                            />
+                          )}
+                        </span>
+                      </Link>
+                    </td>
 
-                  <td className="py-[16px] pr-[16px] text-left">
-                    <Link
-                      href={`/product/${order.slug}`}
-                      className="hover:opacity-60"
-                    >
-                      {order.name}
-                    </Link>
-                    <ul className="mt-[6px] space-y-[2px] text-ink-muted">
-                      {order.options.map((option) => (
-                        <li key={option}>{option}</li>
-                      ))}
-                    </ul>
-                  </td>
+                    <td className="py-[16px] pr-[16px] text-left">
+                      {item.product_slug ? (
+                        <Link href={`/product/${item.product_slug}`} className="hover:opacity-60">
+                          {item.product_name}
+                        </Link>
+                      ) : (
+                        item.product_name
+                      )}
+                      {item.option_label && (
+                        <p className="mt-[6px] text-ink-muted">[옵션: {item.option_label}]</p>
+                      )}
+                    </td>
 
-                  <td className="py-[16px]">{order.quantity}</td>
+                    <td className="py-[16px]">{item.quantity}</td>
 
-                  <td className="py-[16px]">
-                    {formatPrice(order.price * order.quantity)}
-                  </td>
+                    <td className="py-[16px]">
+                      {formatPrice(item.unit_price * item.quantity)}
+                    </td>
 
-                  <td className="py-[16px]">{order.status}</td>
-                </tr>
-              ))}
+                    {index === 0 && (
+                      <td rowSpan={order.items.length} className="border-l border-hairline py-[16px]">
+                        {orderStatusNames[order.status]}
+                      </td>
+                    )}
+                  </tr>
+                )),
+              )}
             </tbody>
           </table>
         </div>

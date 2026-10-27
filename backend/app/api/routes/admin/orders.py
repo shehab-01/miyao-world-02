@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.models import Order, OrderStatus
+from app.orders import STOCK_HELD, hold_stock, release_stock
 from app.schemas.admin import OrderAdminOut, OrderRowOut, OrderUpdateIn, Page
 
 router = APIRouter(prefix="/orders", tags=["Admin"])
@@ -56,13 +57,15 @@ async def list_orders(
     )
 
 
-async def _load_order(db: AsyncSession, order_id: int) -> Order:
-    order = await db.scalar(
+async def _load_order(db: AsyncSession, order_id: int, lock: bool = False) -> Order:
+    query = (
         select(Order)
         .where(Order.id == order_id)
         .options(selectinload(Order.items))
         .execution_options(populate_existing=True)
     )
+    # Locked while changing status, so stock is never released or taken twice
+    order = await db.scalar(query.with_for_update(of=Order) if lock else query)
     if order is None:
         raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
     return order
@@ -75,8 +78,13 @@ async def get_order(order_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.patch("/{order_id}", response_model=OrderAdminOut)
 async def update_order(order_id: int, body: OrderUpdateIn, db: AsyncSession = Depends(get_db)):
-    order = await _load_order(db, order_id)
+    order = await _load_order(db, order_id, lock=True)
     if body.status is not None:
+        # Cancelling before shipment puts the items back on sale; reopening takes them again
+        if order.status in STOCK_HELD and body.status == OrderStatus.cancelled:
+            await release_stock(db, order)
+        elif order.status == OrderStatus.cancelled and body.status in STOCK_HELD:
+            await hold_stock(db, order)
         # Leaving 입금전 for a fulfilment status means the transfer was confirmed
         if (
             order.status == OrderStatus.pending_payment

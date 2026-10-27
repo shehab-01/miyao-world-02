@@ -1,6 +1,7 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch, apiPost } from "@/lib/api";
 
 export type SocialProvider = "kakao" | "naver";
@@ -68,4 +69,17 @@ export function useAuth() {
   const { user, loaded } = useSyncExternalStore(subscribe, () => state, () => initialState);
 
   return { user, loaded, isLoggedIn: user !== null, logout };
+}
+
+/** For member-only pages: sends guests to the login page, coming back here afterwards. */
+export function useRequireLogin() {
+  const { user, loaded } = useAuth();
+  const router = useRouter();
+  useEffect(() => {
+    if (loaded && !user) {
+      const here = window.location.pathname + window.location.search;
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
+    }
+  }, [loaded, user, router]);
+  return user;
 }

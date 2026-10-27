@@ -1,11 +1,15 @@
 import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.models.base import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.catalog import Product
 
 
 class OrderStatus(str, enum.Enum):
@@ -78,3 +82,5 @@ class OrderItem(Base):
     quantity: Mapped[int]
 
     order: Mapped[Order] = relationship(back_populates="items")
+    # For the picture and link in order history; None once the product is deleted
+    product: Mapped["Product | None"] = relationship()

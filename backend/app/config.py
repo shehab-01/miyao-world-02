@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     # Sender address, e.g. "MIYAO WORLD <no-reply@miyaoworld.com>"; defaults to smtp_user
     mail_from: str = ""
 
+    # 무통장입금 account, shown in order confirmation mails (the site shows company.bank
+    # from frontend/src/lib/site-config.ts; keep the two the same)
+    bank_account: str = "신한은행 110-498-133973 (예금주: Miyaoworld)"
+
     # Uploaded product images; served at /uploads
     upload_dir: str = "uploads"
 

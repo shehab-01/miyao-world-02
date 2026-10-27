@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import OptionSelect from "@/components/product/OptionSelect";
+import { useAuth } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
 import { finalPrice, variantLabel, type ProductDetail, type ProductVariant } from "@/lib/catalog";
+import { addToCart, addToWishlist, checkoutHref, loginHref } from "@/lib/shop";
 
 type Line = { variant: ProductVariant; quantity: number };
 
@@ -74,6 +77,50 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
   const total = lines.reduce((sum, line) => sum + linePrice(line), 0);
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isLoggedIn } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const items = lines.map((line) => ({ variant_id: line.variant.id, quantity: line.quantity }));
+
+  /** Cart and wishlist are for members; guests are offered the login page. */
+  const memberOnly = () => {
+    if (isLoggedIn) return true;
+    if (window.confirm("회원만 이용할 수 있습니다. 로그인하시겠습니까?")) router.push(loginHref(pathname));
+    return false;
+  };
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await action();
+    } catch (err) {
+      window.alert((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const buyNow = () => {
+    if (lines.length === 0) return window.alert("필수 옵션을 선택해 주세요.");
+    // Guests log in first and land on the order form with the same items
+    router.push(isLoggedIn ? checkoutHref(items) : loginHref(checkoutHref(items)));
+  };
+  const addCart = () => {
+    if (lines.length === 0) return window.alert("필수 옵션을 선택해 주세요.");
+    if (!memberOnly()) return;
+    run(async () => {
+      await addToCart(items);
+      if (window.confirm("장바구니에 담았습니다. 장바구니로 이동하시겠습니까?")) router.push("/cart");
+    });
+  };
+  const addWish = () => {
+    if (!memberOnly()) return;
+    run(async () => {
+      await addToWishlist(product.slug);
+      if (window.confirm("관심상품에 담았습니다. 관심상품 목록으로 이동하시겠습니까?")) router.push("/mypage/wishlist");
+    });
+  };
+
   return (
     <div>
       {!single && (
@@ -126,25 +173,28 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
         </p>
       )}
 
-      {/* TODO: wire BUY NOW / ADD TO CART / ADD TO WISH to the cart API (next step) */}
       <div className="mt-[22px] grid grid-cols-3 gap-[5px] text-[13px] tracking-[0.08em]">
         <button
           type="button"
-          disabled={soldOut}
+          disabled={soldOut || busy}
+          onClick={buyNow}
           className="bg-ink py-[12px] text-[13px] leading-none tracking-[0.08em] text-white hover:opacity-85 disabled:opacity-40"
         >
           BUY NOW
         </button>
         <button
           type="button"
-          disabled={soldOut}
+          disabled={soldOut || busy}
+          onClick={addCart}
           className="border border-hairline py-[12px] text-[13px] leading-none tracking-[0.08em] hover:bg-muted disabled:opacity-40"
         >
           ADD TO CART
         </button>
         <button
           type="button"
-          className="border border-hairline py-[12px] text-[13px] leading-none tracking-[0.08em] hover:bg-muted"
+          disabled={busy}
+          onClick={addWish}
+          className="border border-hairline py-[12px] text-[13px] leading-none tracking-[0.08em] hover:bg-muted disabled:opacity-40"
         >
           ADD TO WISH
         </button>
