@@ -10,6 +10,7 @@ import {
   LogOut,
   Package,
   ReceiptText,
+  Settings,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const nav = [
   { href: "/admin/categories", label: "카테고리", icon: FolderTree },
   { href: "/admin/members", label: "회원 관리", icon: Users },
   { href: "/admin/admins", label: "관리자 계정", icon: ShieldCheck },
+  { href: "/admin/settings", label: "쇼핑몰 설정", icon: Settings },
 ];
 
 const AdminContext = createContext<AdminAccount | null>(null);

@@ -37,6 +37,11 @@ services:
       NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
       UPLOAD_DIR: /data/uploads
       # Windows/macOS bind mounts don't emit file events; poll instead
       WATCHFILES_FORCE_POLLING: "true"

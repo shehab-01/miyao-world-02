@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
 from app.models import OrderStatus, ProductImageKind, SocialProvider
-from app.schemas.catalog import SizeGuideOut
+from app.schemas.catalog import ImageSliceOut, SizeGuideOut
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Slug = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=128)]
@@ -92,8 +92,14 @@ class CategoryIn(BaseModel):
     is_active: bool = True
 
 
-class ProductImageIn(BaseModel):
+class DetailImageIn(BaseModel):
     url: Annotated[str, StringConstraints(max_length=500)]
+    width: int | None = None
+    height: int | None = None
+    slices: list[ImageSliceOut] = []
+
+
+class ProductImageIn(DetailImageIn):
     kind: ProductImageKind = ProductImageKind.gallery
 
 
@@ -106,6 +112,7 @@ class VariantIn(BaseModel):
     id: int | None = None
     size: Annotated[str, StringConstraints(strip_whitespace=True, max_length=20)] | None = None
     color: Annotated[str, StringConstraints(strip_whitespace=True, max_length=50)] | None = None
+    image_url: Annotated[str, StringConstraints(max_length=500)] | None = None
     extra_price: int = 0
     stock: Annotated[int, Field(ge=0)] = 0
     is_active: bool = True
@@ -134,6 +141,7 @@ class ProductIn(BaseModel):
     minimum_order: Annotated[int, Field(ge=1)] = 1
     sort_order: int = 0
     is_active: bool = True
+    hide_common_detail: bool = False
     images: list[ProductImageIn] = []
     variants: Annotated[list[VariantIn], Field(min_length=1)]
 
@@ -166,12 +174,18 @@ class ProductAdminOut(BaseModel):
     minimum_order: int
     sort_order: int
     is_active: bool
+    hide_common_detail: bool
     images: list[ProductImageAdminOut]
     variants: list[VariantAdminOut]
 
 
-class UploadOut(BaseModel):
-    url: str
+class UploadOut(DetailImageIn):
+    pass
+
+
+class DetailCommonIn(BaseModel):
+    header: list[DetailImageIn] = []
+    footer: list[DetailImageIn] = []
 
 
 # --- orders ------------------------------------------------------------------

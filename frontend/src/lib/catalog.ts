@@ -3,7 +3,17 @@ import { ApiError, apiFetch } from "@/lib/api";
 
 export type Category = { slug: string; name: string };
 
-export type ProductImage = { url: string; kind: "gallery" | "detail" };
+export type ImageSlice = { url: string; width: number; height: number };
+
+/** An uploaded image. Very tall ones also come cut into `slices` (iOS can't show them whole). */
+export type DetailImage = {
+  url: string;
+  width: number | null;
+  height: number | null;
+  slices: ImageSlice[];
+};
+
+export type ProductImage = DetailImage & { kind: "gallery" | "detail" };
 
 export type ProductSummary = {
   slug: string;
@@ -18,6 +28,7 @@ export type ProductVariant = {
   id: number;
   size: string | null;
   color: string | null;
+  image_url: string | null;
   extra_price: number;
   stock: number;
 };
@@ -28,6 +39,9 @@ export type ProductDetail = ProductSummary & {
   size_guide: { title: string; lines: string[] }[];
   minimum_order: number;
   variants: ProductVariant[];
+  // Shop-wide images around the detail images (empty if the product opts out)
+  detail_header: DetailImage[];
+  detail_footer: DetailImage[];
 };
 
 export type HomeSection = { category: Category; products: ProductSummary[]; total: number };
@@ -55,7 +69,7 @@ export const galleryImages = (product: ProductSummary) =>
   product.images.filter((image) => image.kind === "gallery").map((image) => image.url);
 
 export const detailImages = (product: ProductSummary) =>
-  product.images.filter((image) => image.kind === "detail").map((image) => image.url);
+  product.images.filter((image) => image.kind === "detail");
 
 /** What the customer pays per item, before option surcharges. */
 export const finalPrice = (product: Pick<ProductSummary, "price" | "sale_price">) =>

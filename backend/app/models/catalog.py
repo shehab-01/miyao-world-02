@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Enum, ForeignKey, String, Text, text, true
+from sqlalchemy import Enum, ForeignKey, String, Text, false, text, true
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,6 +39,8 @@ class Product(TimestampMixin, Base):
     minimum_order: Mapped[int] = mapped_column(server_default=text("1"))
     sort_order: Mapped[int] = mapped_column(server_default=text("0"))
     is_active: Mapped[bool] = mapped_column(server_default=true())
+    # Skip the shop-wide header/footer detail images (site setting) for this product
+    hide_common_detail: Mapped[bool] = mapped_column(server_default=false())
 
     category: Mapped[Category] = relationship(back_populates="products")
     images: Mapped[list["ProductImage"]] = relationship(
@@ -70,6 +72,12 @@ class ProductImage(Base):
         Enum(ProductImageKind, name="product_image_kind"),
         server_default=ProductImageKind.gallery.value,
     )
+    # Display size; unknown for images uploaded before sizes were recorded
+    width: Mapped[int | None]
+    height: Mapped[int | None]
+    # Very tall detail images are also stored cut into pieces (see app.uploads):
+    # [{"url": ..., "width": ..., "height": ...}, ...]; empty when not sliced
+    slices: Mapped[list[dict]] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
     sort_order: Mapped[int] = mapped_column(server_default=text("0"))
 
     product: Mapped[Product] = relationship(back_populates="images")
@@ -90,6 +98,9 @@ class ProductVariant(Base):
     )
     size: Mapped[str | None] = mapped_column(String(20))
     color: Mapped[str | None] = mapped_column(String(50))
+    # Small picture shown next to the option in the shop's option list
+    # (usually one of the product's gallery images, e.g. the color's photo)
+    image_url: Mapped[str | None] = mapped_column(String(500))
     extra_price: Mapped[int] = mapped_column(server_default=text("0"))
     stock: Mapped[int] = mapped_column(server_default=text("0"))
     sort_order: Mapped[int] = mapped_column(server_default=text("0"))

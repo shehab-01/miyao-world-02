@@ -11,8 +11,10 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const { error, next } = await searchParams;
-  // Only same-site paths, so ?next= can't send people to another site
-  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
+  // Only same-site paths, so ?next= can't send people to another site. Resolved the
+  // way the browser will (it reads "/\evil.com" as "//evil.com"), then checked.
+  const resolved = new URL(next ?? "/", "http://same.site");
+  const safeNext = resolved.origin === "http://same.site" ? resolved.pathname + resolved.search + resolved.hash : "/";
 
   return (
     <>

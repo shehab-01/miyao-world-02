@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
+import OptionSelect from "@/components/product/OptionSelect";
 import { formatPrice } from "@/lib/format";
 import { finalPrice, variantLabel, type ProductDetail, type ProductVariant } from "@/lib/catalog";
 
@@ -62,9 +63,8 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
     single && !soldOut ? [{ variant: product.variants[0], quantity: min }] : [],
   );
 
-  const addVariant = (id: string) => {
-    const variant = product.variants.find((v) => String(v.id) === id);
-    if (!variant || lines.some((line) => line.variant.id === variant.id)) return;
+  const addVariant = (variant: ProductVariant) => {
+    if (lines.some((line) => line.variant.id === variant.id)) return;
     setLines([...lines, { variant, quantity: min }]);
   };
   const setQuantity = (id: number, quantity: number) =>
@@ -77,23 +77,9 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
   return (
     <div>
       {!single && (
-        <select
-          aria-label="옵션 선택"
-          value=""
-          disabled={soldOut}
-          onChange={(e) => addVariant(e.target.value)}
-          className="mb-[16px] h-[32px] w-full border border-hairline bg-white px-[8px] text-[12.5px] outline-none"
-        >
-          <option value="">- [필수] 옵션을 선택해 주세요 -</option>
-          {product.variants.map((variant) => (
-            <option key={variant.id} value={variant.id} disabled={variant.stock < min}>
-              {variantLabel(variant)}
-              {variant.extra_price !== 0 &&
-                ` (${variant.extra_price > 0 ? "+" : ""}${formatPrice(variant.extra_price)})`}
-              {variant.stock < min && " [품절]"}
-            </option>
-          ))}
-        </select>
+        <div className="mb-[16px]">
+          <OptionSelect variants={product.variants} minimum={min} disabled={soldOut} onSelect={addVariant} />
+        </div>
       )}
 
       {lines.map((line) => (

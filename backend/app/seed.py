@@ -16,7 +16,7 @@ from sqlalchemy import delete, func, select
 
 from app.db import AsyncSessionLocal
 from app.models import Category, Product, ProductImage, ProductVariant
-from app.uploads import image_extension, save_image
+from app.uploads import image_extension, store_image
 
 CATEGORIES = [
     ("t-shirts", "T-Shirts"),
@@ -120,7 +120,7 @@ PRODUCTS = [
 ]
 
 
-async def download(client: httpx.AsyncClient, photo_id: str) -> str:
+async def download(client: httpx.AsyncClient, photo_id: str) -> dict:
     response = await client.get(
         f"https://images.unsplash.com/photo-{photo_id}",
         params={"w": 1200, "q": 75, "fm": "jpg", "fit": "max"},
@@ -129,7 +129,7 @@ async def download(client: httpx.AsyncClient, photo_id: str) -> str:
     extension = image_extension(response.content)
     if extension is None:
         raise ValueError(f"photo {photo_id} is not an image")
-    return save_image(response.content, extension)
+    return store_image(response.content, extension)
 
 
 def variants_for(sizes: list[str], colors: list[str]) -> list[ProductVariant]:
@@ -157,7 +157,7 @@ async def seed(reset: bool) -> None:
         async with httpx.AsyncClient(timeout=30) as client:
             for index, row in enumerate(PRODUCTS):
                 category, slug, name, price, sale, material, note, sizes, colors, guide, photos = row
-                urls = [await download(client, photo) for photo in photos]
+                stored = [await download(client, photo) for photo in photos]
                 db.add(
                     Product(
                         category=categories[category],
@@ -169,11 +169,11 @@ async def seed(reset: bool) -> None:
                         note=note,
                         size_guide=guide,
                         sort_order=index,
-                        images=[ProductImage(url=url, sort_order=i) for i, url in enumerate(urls)],
+                        images=[ProductImage(**image, sort_order=i) for i, image in enumerate(stored)],
                         variants=variants_for(sizes, colors),
                     )
                 )
-                print(f"  {name} ({len(urls)} photo{'s' if len(urls) > 1 else ''})")
+                print(f"  {name} ({len(stored)} photo{'s' if len(stored) > 1 else ''})")
 
         await db.commit()
         print(f"Seeded {len(PRODUCTS)} products in {len(CATEGORIES)} categories.")

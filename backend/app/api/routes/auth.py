@@ -1,10 +1,10 @@
 import logging
 import secrets
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -15,11 +15,16 @@ from app import social
 from app.api.deps import get_optional_user
 from app.config import get_settings
 from app.db import get_db
+from app.mailer import send_mail
 from app.models import SocialAccount, SocialProvider, User
 from app.schemas.auth import (
     LOGIN_ID_PATTERN,
+    FindIdIn,
+    FoundAccountOut,
     LoginIdAvailableOut,
     LoginIn,
+    PasswordResetIn,
+    PasswordResetRequestIn,
     ProfileIn,
     RegisterIn,
     SocialCompleteIn,
@@ -29,6 +34,8 @@ from app.schemas.auth import (
 from app.security import (
     OAUTH_STATE_COOKIE,
     OAUTH_STATE_TTL,
+    PASSWORD_RESET,
+    PASSWORD_RESET_TTL,
     SESSION_COOKIE,
     SOCIAL_SIGNUP_COOKIE,
     SOCIAL_SIGNUP_TTL,
@@ -36,6 +43,7 @@ from app.security import (
     decode_token,
     encode_token,
     hash_password,
+    password_fingerprint,
     set_cookie,
     start_session,
     verify_password,
@@ -47,6 +55,9 @@ settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 EMAIL_TAKEN = "이미 가입된 이메일입니다. 기존 계정으로 로그인해 주세요."
+
+MAX_FAILED_LOGINS = 5
+LOCKOUT = timedelta(minutes=10)
 
 
 async def _email_taken(db: AsyncSession, email: str) -> bool:
@@ -111,16 +122,103 @@ async def register(body: RegisterIn, response: Response, db: AsyncSession = Depe
 
 @router.post("/login", response_model=UserOut)
 async def login(body: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
+    now = datetime.now(UTC)
     user = await db.scalar(select(User).where(User.login_id == body.login_id.strip().lower()))
+
+    if user and user.locked_until and user.locked_until > now:
+        minutes = int((user.locked_until - now).total_seconds() // 60) + 1
+        raise HTTPException(
+            status_code=429,
+            detail=f"비밀번호를 {MAX_FAILED_LOGINS}회 잘못 입력해 로그인이 잠겼습니다. "
+            f"{minutes}분 후 다시 시도하거나 비밀번호 찾기를 이용해 주세요.",
+        )
+
     if not verify_password(body.password, user.password_hash if user else None):
+        if user:
+            user.failed_login_count += 1
+            if user.failed_login_count >= MAX_FAILED_LOGINS:
+                user.locked_until = now + LOCKOUT
+                user.failed_login_count = 0
+            await db.commit()
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 일치하지 않습니다.")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="이용이 제한된 계정입니다. 고객센터로 문의해 주세요.")
 
-    user.last_login_at = datetime.now(UTC)
+    user.failed_login_count = 0
+    user.locked_until = None
+    user.last_login_at = now
     await db.commit()
     start_session(response, user)
     return user
+
+
+# --- find ID / reset password -----------------------------------------------
+
+
+def _mask_login_id(login_id: str) -> str:
+    keep = 2 if len(login_id) <= 5 else 3
+    return login_id[:keep] + "*" * (len(login_id) - keep)
+
+
+@router.post("/find-id", response_model=FoundAccountOut)
+async def find_id(body: FindIdIn, background: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+    user = await db.scalar(select(User).where(User.email == body.email, User.name == body.name))
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=404, detail="입력하신 정보와 일치하는 회원이 없습니다.")
+
+    if user.login_id:
+        # On screen the id is partly hidden; the full id only goes to the member's own inbox
+        background.add_task(
+            send_mail,
+            user.email,
+            "[MIYAO WORLD] 아이디 안내",
+            f"{user.name}님의 아이디는 {user.login_id} 입니다.\n\n로그인: {settings.public_url}/login",
+        )
+    return FoundAccountOut(
+        login_id=_mask_login_id(user.login_id) if user.login_id else None,
+        providers=user.providers,
+        created_at=user.created_at,
+    )
+
+
+@router.post("/password-reset", status_code=202)
+async def request_password_reset(
+    body: PasswordResetRequestIn, background: BackgroundTasks, db: AsyncSession = Depends(get_db)
+):
+    user = await db.scalar(
+        select(User).where(User.login_id == body.login_id.strip().lower(), User.email == body.email)
+    )
+    # The answer (and its timing: the mail goes out in the background) is the same
+    # whether or not the account exists, so this can't be used to probe accounts.
+    if user and user.is_active and user.password_hash:
+        token = encode_token(
+            PASSWORD_RESET,
+            {"sub": str(user.id), "pv": password_fingerprint(user.password_hash)},
+            PASSWORD_RESET_TTL,
+        )
+        background.add_task(
+            send_mail,
+            user.email,
+            "[MIYAO WORLD] 비밀번호 재설정 안내",
+            f"{user.name}님, 아래 링크에서 새 비밀번호를 설정해 주세요. 링크는 30분 동안 한 번만 사용할 수 있습니다.\n\n"
+            f"{settings.public_url}/reset-password?token={token}\n\n"
+            "본인이 요청하지 않았다면 이 메일을 무시하세요. 비밀번호는 바뀌지 않습니다.",
+        )
+
+
+@router.post("/password-reset/confirm", status_code=204)
+async def reset_password(body: PasswordResetIn, db: AsyncSession = Depends(get_db)):
+    payload = decode_token(body.token, PASSWORD_RESET)
+    user = await db.get(User, int(payload["sub"])) if payload else None
+    # The fingerprint no longer matches once the password has changed: each link works once
+    if user is None or not user.is_active or payload["pv"] != password_fingerprint(user.password_hash):
+        raise HTTPException(
+            status_code=400, detail="링크가 만료되었거나 이미 사용되었습니다. 비밀번호 찾기를 다시 진행해 주세요."
+        )
+    user.password_hash = hash_password(body.password)
+    user.failed_login_count = 0
+    user.locked_until = None
+    await db.commit()
 
 
 @router.post("/logout", status_code=204)
@@ -149,8 +247,10 @@ def _login_error(code: str) -> RedirectResponse:
 
 
 def _safe_next(next_path: str) -> str:
-    # Only same-site paths, so the login can't be used as an open redirect
-    return next_path if next_path.startswith("/") and not next_path.startswith("//") else "/"
+    # Only same-site paths, so the login can't be used as an open redirect.
+    # Browsers read a backslash as "/", so "/\evil.com" would mean "//evil.com".
+    same_site = next_path.startswith("/") and not next_path.startswith("//") and "\\" not in next_path
+    return next_path if same_site else "/"
 
 
 @router.get("/social/pending", response_model=SocialPendingOut)

@@ -41,6 +41,8 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
+      // Tells Next.js to turn smooth scrolling off while it changes pages (globals.css turns it on)
+      data-scroll-behavior="smooth"
       className={`${lato.variable} ${playfair.variable} ${caveat.variable}`}
     >
       <body className="antialiased">{children}</body>

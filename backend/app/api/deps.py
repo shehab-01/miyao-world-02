@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models import Admin, User
-from app.security import ADMIN_SESSION_COOKIE, SESSION_COOKIE, decode_token
+from app.security import ADMIN_SESSION_COOKIE, SESSION_COOKIE, decode_token, password_fingerprint
 
 
 async def get_optional_user(
@@ -16,7 +16,12 @@ async def get_optional_user(
     if payload is None:
         return None
     user = await db.get(User, int(payload["sub"]))
-    return user if user and user.is_active else None
+    if user is None or not user.is_active:
+        return None
+    # Signed in before the password was changed (e.g. reset after a stolen password)
+    if payload.get("pv") != password_fingerprint(user.password_hash):
+        return None
+    return user
 
 
 async def get_current_user(user: User | None = Depends(get_optional_user)) -> User:

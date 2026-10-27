@@ -3,6 +3,7 @@ from app.models.admin import Admin
 from app.models.catalog import Category, Product, ProductImage, ProductImageKind, ProductVariant
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.shopping import CartItem, WishlistItem
+from app.models.site import SiteSetting
 from app.models.user import SocialAccount, SocialProvider, User
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     "ProductImage",
     "ProductImageKind",
     "ProductVariant",
+    "SiteSetting",
     "SocialAccount",
     "SocialProvider",
     "User",

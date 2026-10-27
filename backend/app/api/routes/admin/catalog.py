@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.models import Category, Product, ProductImage, ProductVariant
+from app.models import Category, Product, ProductImage, ProductImageKind, ProductVariant
 from app.schemas.admin import (
     CategoryAdminOut,
     CategoryIn,
@@ -15,7 +18,7 @@ from app.schemas.admin import (
     ProductRowOut,
     UploadOut,
 )
-from app.uploads import MAX_UPLOAD_BYTES, image_extension, save_image
+from app.uploads import MAX_UPLOAD_BYTES, image_extension, store_image
 
 router = APIRouter(tags=["Admin"])
 
@@ -151,7 +154,7 @@ def _apply(product: Product, body: ProductIn) -> None:
         setattr(product, field, value)
     product.size_guide = [guide.model_dump() for guide in body.size_guide]
     product.images = [
-        ProductImage(url=image.url, kind=image.kind, sort_order=index)
+        ProductImage(**image.model_dump(), sort_order=index)
         for index, image in enumerate(body.images)
     ]
 
@@ -208,11 +211,20 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/uploads", response_model=UploadOut, status_code=201)
-async def upload_image(file: UploadFile):
+async def upload_image(
+    file: UploadFile,
+    kind: Annotated[ProductImageKind, Form()] = ProductImageKind.gallery,
+):
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="이미지는 10MB 이하만 업로드할 수 있습니다.")
+        raise HTTPException(status_code=413, detail="이미지는 30MB 이하만 업로드할 수 있습니다.")
     extension = image_extension(data)
     if extension is None:
         raise HTTPException(status_code=400, detail="JPG, PNG, GIF, WEBP 이미지만 업로드할 수 있습니다.")
-    return UploadOut(url=save_image(data, extension))
+    try:
+        # Decoding / slicing a long image takes a moment; keep it off the event loop
+        return await run_in_threadpool(
+            store_image, data, extension, sliceable=kind == ProductImageKind.detail
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="이미지를 읽을 수 없습니다. 다른 파일로 시도해 주세요.")

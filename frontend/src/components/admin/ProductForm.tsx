@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Image from "next/image";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ExternalLink, Plus, Trash2, Upload, X } from "lucide-react";
+import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import {
   Button,
   Card,
@@ -16,6 +15,8 @@ import {
   tdClass,
   thClass,
 } from "@/components/admin/ui";
+import ImageManager, { type AdminImage, type ImageKind } from "@/components/admin/ImageManager";
+import VariantImagePicker from "@/components/admin/VariantImagePicker";
 import { adminRequest, useAdminQuery } from "@/lib/admin";
 
 export type AdminCategory = {
@@ -27,8 +28,7 @@ export type AdminCategory = {
   product_count: number;
 };
 
-type ImageKind = "gallery" | "detail";
-type ProductImage = { url: string; kind: ImageKind };
+type ProductImage = AdminImage & { kind: ImageKind };
 
 export type AdminProduct = {
   id: number;
@@ -43,11 +43,13 @@ export type AdminProduct = {
   minimum_order: number;
   sort_order: number;
   is_active: boolean;
+  hide_common_detail: boolean;
   images: ProductImage[];
   variants: {
     id: number;
     size: string | null;
     color: string | null;
+    image_url: string | null;
     extra_price: number;
     stock: number;
     is_active: boolean;
@@ -59,6 +61,7 @@ type VariantRow = {
   id?: number;
   size: string;
   color: string;
+  image_url: string | null;
   extra_price: string;
   stock: string;
   is_active: boolean;
@@ -67,6 +70,7 @@ type VariantRow = {
 const newVariant = (size = ""): VariantRow => ({
   size,
   color: "",
+  image_url: null,
   extra_price: "0",
   stock: "0",
   is_active: true,
@@ -84,11 +88,13 @@ function toForm(product?: AdminProduct) {
     minimum_order: String(product?.minimum_order ?? 1),
     sort_order: String(product?.sort_order ?? 0),
     is_active: product?.is_active ?? true,
+    hide_common_detail: product?.hide_common_detail ?? false,
     images: product?.images ?? [],
     variants: product?.variants.map((v) => ({
       id: v.id,
       size: v.size ?? "",
       color: v.color ?? "",
+      image_url: v.image_url,
       extra_price: String(v.extra_price),
       stock: String(v.stock),
       is_active: v.is_active,
@@ -128,11 +134,13 @@ function toPayload(form: FormState) {
     minimum_order: Number(form.minimum_order) || 1,
     sort_order: Number(form.sort_order) || 0,
     is_active: form.is_active,
+    hide_common_detail: form.hide_common_detail,
     images: form.images,
     variants: form.variants.map((v) => ({
       id: v.id,
       size: v.size.trim() || null,
       color: v.color.trim() || null,
+      image_url: v.image_url,
       extra_price: Number(v.extra_price),
       stock: Number(v.stock),
       is_active: v.is_active,
@@ -144,109 +152,6 @@ function toPayload(form: FormState) {
         lines: g.lines.split("\n").map((line) => line.trim()).filter(Boolean),
       })),
   };
-}
-
-function ImageManager({
-  title,
-  hint,
-  kind,
-  images,
-  onChange,
-}: {
-  title: string;
-  hint: string;
-  kind: ImageKind;
-  images: ProductImage[];
-  onChange: (images: ProductImage[]) => void;
-}) {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
-  const own = images.filter((image) => image.kind === kind);
-  const others = images.filter((image) => image.kind !== kind);
-  const setOwn = (next: ProductImage[]) => onChange([...others, ...next]);
-
-  const upload = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setUploading(true);
-    setError("");
-    const added: ProductImage[] = [];
-    try {
-      for (const file of Array.from(files)) {
-        const body = new FormData();
-        body.append("file", file);
-        const { url } = await adminRequest<{ url: string }>("POST", "/api/admin/uploads", body);
-        added.push({ url, kind });
-      }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setOwn([...own, ...added]);
-      setUploading(false);
-      if (fileInput.current) fileInput.current.value = "";
-    }
-  };
-
-  const move = (index: number, by: number) => {
-    const next = [...own];
-    [next[index], next[index + by]] = [next[index + by], next[index]];
-    setOwn(next);
-  };
-
-  return (
-    <div>
-      <div className="mb-[10px] flex items-center justify-between gap-[12px]">
-        <div>
-          <p className="text-[13px] font-bold">{title}</p>
-          <p className="text-[12px] text-ink-muted">{hint}</p>
-        </div>
-        <Button variant="secondary" disabled={uploading} onClick={() => fileInput.current?.click()}>
-          <Upload size={14} />
-          {uploading ? "업로드 중…" : "이미지 추가"}
-        </Button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          multiple
-          hidden
-          onChange={(e) => upload(e.target.files)}
-        />
-      </div>
-      <ErrorText>{error}</ErrorText>
-      {own.length === 0 ? (
-        <p className="rounded-[4px] border border-dashed border-hairline py-[24px] text-center text-[12.5px] text-ink-muted">
-          등록된 이미지가 없습니다.
-        </p>
-      ) : (
-        <ul className="flex flex-wrap gap-[10px]">
-          {own.map((image, index) => (
-            <li key={`${index}-${image.url}`} className="w-[110px]">
-              <div className="relative h-[110px] w-[110px] overflow-hidden rounded-[4px] border border-hairline bg-[#f5f5f5]">
-                <Image src={image.url} alt="" fill unoptimized className="object-cover" />
-                {index === 0 && kind === "gallery" && (
-                  <span className="absolute top-[4px] left-[4px] rounded-[3px] bg-ink px-[5px] py-[1px] text-[11px] text-white">
-                    대표
-                  </span>
-                )}
-              </div>
-              <div className="mt-[4px] flex justify-between text-ink-muted">
-                <button type="button" aria-label="앞으로" disabled={index === 0} onClick={() => move(index, -1)} className="disabled:opacity-30">
-                  <ArrowLeft size={15} />
-                </button>
-                <button type="button" aria-label="삭제" onClick={() => setOwn(own.filter((_, i) => i !== index))} className="hover:text-[#e5484d]">
-                  <X size={15} />
-                </button>
-                <button type="button" aria-label="뒤로" disabled={index === own.length - 1} onClick={() => move(index, 1)} className="disabled:opacity-30">
-                  <ArrowRight size={15} />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
 }
 
 export default function ProductForm({ product }: { product?: AdminProduct }) {
@@ -261,6 +166,25 @@ export default function ProductForm({ product }: { product?: AdminProduct }) {
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
   const setVariant = (index: number, patch: Partial<VariantRow>) =>
     set({ variants: form.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)) });
+  const imagesOf = (kind: ImageKind) => form.images.filter((image) => image.kind === kind);
+  // Functional update: uploads finish after other edits may have happened.
+  // Gallery images stay first; the admin list uses the first image as the thumbnail.
+  const setImages = (kind: ImageKind, images: AdminImage[]) =>
+    setForm((f) => {
+      const mine = images.map((image) => ({ ...image, kind }));
+      const rest = f.images.filter((image) => image.kind !== kind);
+      return { ...f, images: kind === "gallery" ? [...mine, ...rest] : [...rest, ...mine] };
+    });
+  // An option's picture usually belongs to its color, so it's copied to the
+  // other options of the same color (S / Black, M / Black, …)
+  const setVariantImage = (index: number, url: string | null) => {
+    const color = form.variants[index].color.trim();
+    set({
+      variants: form.variants.map((v, i) =>
+        i === index || (color && v.color.trim() === color) ? { ...v, image_url: url } : v,
+      ),
+    });
+  };
   const setGuide = (index: number, patch: Partial<FormState["size_guide"][number]>) =>
     set({ size_guide: form.size_guide.map((g, i) => (i === index ? { ...g, ...patch } : g)) });
 
@@ -390,18 +314,32 @@ export default function ProductForm({ product }: { product?: AdminProduct }) {
           <div className="space-y-[24px]">
             <ImageManager
               title="상품 이미지"
-              hint="목록과 상품 상단 슬라이드에 사용됩니다. 첫 번째 이미지가 대표 이미지입니다."
+              hint="상품 상단 갤러리에 순서대로 표시됩니다. ★ 대표 이미지는 상품 목록 썸네일로 쓰입니다. 끌어서 순서를 바꿀 수 있습니다."
               kind="gallery"
-              images={form.images}
-              onChange={(images) => set({ images })}
+              images={imagesOf("gallery")}
+              onChange={(images) => setImages("gallery", images)}
             />
-            <ImageManager
-              title="상세 이미지"
-              hint="상품 상세 설명 영역에 순서대로 표시됩니다."
-              kind="detail"
-              images={form.images}
-              onChange={(images) => set({ images })}
-            />
+            <div>
+              <ImageManager
+                title="상세 이미지"
+                hint="상세 영역에 순서대로 이어 붙여 표시됩니다. 권장 가로 900px · 최대 30MB (아주 긴 이미지는 자동으로 나눠 저장)"
+                kind="detail"
+                images={imagesOf("detail")}
+                onChange={(images) => setImages("detail", images)}
+              />
+              <label className="mt-[12px] flex items-center gap-[8px] text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={form.hide_common_detail}
+                  onChange={(e) => set({ hide_common_detail: e.target.checked })}
+                  className="h-[15px] w-[15px] accent-ink"
+                />
+                이 상품에는 공통 상세 이미지(상단·하단)를 표시하지 않음
+                <Link href="/admin/settings" className="text-ink-muted underline">
+                  공통 이미지 설정
+                </Link>
+              </label>
+            </div>
           </div>
         </Card>
 
@@ -429,11 +367,14 @@ export default function ProductForm({ product }: { product?: AdminProduct }) {
         >
           <p className="mb-[12px] text-[12.5px] text-ink-muted">
             옵션이 없는 상품은 사이즈·색상을 비워 한 줄만 두세요. 재고가 0이면 품절로 표시됩니다.
+            <br />
+            옵션 이미지는 쇼핑몰 옵션 목록에 작게 표시됩니다. 상품 이미지 중에서 고르며, 같은 색상의 옵션에 함께 적용됩니다.
           </p>
           <div className="overflow-x-auto">
             <table className={tableClass}>
               <thead>
                 <tr>
+                  <th className={thClass}>이미지</th>
                   <th className={thClass}>사이즈</th>
                   <th className={thClass}>색상</th>
                   <th className={thClass}>추가금액 (원)</th>
@@ -445,6 +386,13 @@ export default function ProductForm({ product }: { product?: AdminProduct }) {
               <tbody>
                 {form.variants.map((variant, index) => (
                   <tr key={variant.id ?? `new-${index}`}>
+                    <td className={tdClass}>
+                      <VariantImagePicker
+                        value={variant.image_url}
+                        images={imagesOf("gallery").map((image) => image.url)}
+                        onChange={(url) => setVariantImage(index, url)}
+                      />
+                    </td>
                     <td className={tdClass}>
                       <input value={variant.size} onChange={(e) => setVariant(index, { size: e.target.value })} className={inputClass} />
                     </td>

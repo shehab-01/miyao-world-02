@@ -30,6 +30,9 @@ class User(TimestampMixin, Base):
     agree_sms: Mapped[bool] = mapped_column(server_default=false())
     agree_email: Mapped[bool] = mapped_column(server_default=false())
     mileage: Mapped[int] = mapped_column(server_default=text("0"))
+    # Brute-force protection: locked for a while after repeated wrong passwords
+    failed_login_count: Mapped[int] = mapped_column(server_default=text("0"))
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # When the required terms were accepted — kept as consent evidence (개인정보보호법)
     terms_agreed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     privacy_agreed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

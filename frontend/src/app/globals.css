@@ -168,6 +168,12 @@
     @apply border-border outline-ring/50;
   }
 
+  /* In-page links (#prdReview, #prdQnA …) glide instead of jumping.
+     Page-to-page navigation still jumps: see data-scroll-behavior in app/layout.tsx */
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);

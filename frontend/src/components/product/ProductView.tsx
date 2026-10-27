@@ -7,7 +7,7 @@ import type { ProductDetail } from "@/lib/catalog";
 export default function ProductView({ product }: { product: ProductDetail }) {
   return (
     <>
-      <div className="grid gap-[60px] lg:grid-cols-[1.05fr_1fr]">
+      <div className="grid grid-cols-1 gap-[60px] lg:grid-cols-[1.05fr_1fr]">
         <ProductGallery product={product} />
         <ProductInfo product={product} />
       </div>

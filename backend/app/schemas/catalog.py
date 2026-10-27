@@ -10,11 +10,31 @@ class CategoryOut(BaseModel):
     name: str
 
 
-class ProductImageOut(BaseModel):
+class ImageSliceOut(BaseModel):
+    url: str
+    width: int
+    height: int
+
+
+class DetailImageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     url: str
+    width: int | None = None
+    height: int | None = None
+    # Present for very tall images; the shop shows these instead of `url`
+    slices: list[ImageSliceOut] = []
+
+
+class ProductImageOut(DetailImageOut):
     kind: ProductImageKind
+
+
+class DetailCommonOut(BaseModel):
+    """Shop-wide images shown above / below every product's detail images."""
+
+    header: list[DetailImageOut] = []
+    footer: list[DetailImageOut] = []
 
 
 class ProductVariantOut(BaseModel):
@@ -23,6 +43,7 @@ class ProductVariantOut(BaseModel):
     id: int
     size: str | None
     color: str | None
+    image_url: str | None
     extra_price: int
     stock: int
 
@@ -55,3 +76,5 @@ class ProductDetailOut(ProductSummaryOut):
     size_guide: list[SizeGuideOut]
     minimum_order: int
     variants: list[ProductVariantOut]
+    detail_header: list[DetailImageOut] = []
+    detail_footer: list[DetailImageOut] = []

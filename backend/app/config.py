@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     admin_email: str = ""
     admin_password: str = ""
 
+    # Outgoing mail (find ID / password reset), sent over SMTP with STARTTLS.
+    # Without smtp_host (local dev) mails are written to the backend log instead.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    # Sender address, e.g. "MIYAO WORLD <no-reply@miyaoworld.com>"; defaults to smtp_user
+    mail_from: str = ""
+
     # Uploaded product images; served at /uploads
     upload_dir: str = "uploads"
 

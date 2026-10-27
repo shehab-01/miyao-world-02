@@ -5,7 +5,14 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.models import Category, Product, ProductVariant
-from app.schemas.catalog import CategoryOut, HomeSectionOut, ProductDetailOut, ProductSummaryOut
+from app.schemas.catalog import (
+    CategoryOut,
+    DetailCommonOut,
+    HomeSectionOut,
+    ProductDetailOut,
+    ProductSummaryOut,
+)
+from app.site_settings import DETAIL_COMMON_IMAGES, get_setting
 
 router = APIRouter(tags=["Catalog"])
 
@@ -69,4 +76,9 @@ async def get_product(slug: str, db: AsyncSession = Depends(get_db)):
     )
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
-    return product
+
+    detail = ProductDetailOut.model_validate(product)
+    if product.hide_common_detail:
+        return detail
+    common = DetailCommonOut.model_validate(await get_setting(db, DETAIL_COMMON_IMAGES))
+    return detail.model_copy(update={"detail_header": common.header, "detail_footer": common.footer})
