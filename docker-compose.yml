@@ -1,6 +1,6 @@
 # Local development stack.
 #   docker compose up --build --watch
-# Frontend http://localhost:3000 (also serves /api/*) · API http://localhost:8000 (docs at /docs)
+# Frontend http://localhost:3000 (also serves /api/*) · API http://localhost:8001 (docs at /docs)
 
 name: miyao-world
 
@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-miyao}
       POSTGRES_DB: ${POSTGRES_DB:-miyao_world}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -41,7 +41,7 @@ services:
       # Windows/macOS bind mounts don't emit file events; poll instead
       WATCHFILES_FORCE_POLLING: "true"
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_PORT:-8001}:8000"
     volumes:
       # Bind mount so code edits reload and `alembic revision` files land on the host
       - ./backend:/app

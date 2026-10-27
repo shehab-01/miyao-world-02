@@ -5,8 +5,8 @@ Shopping mall web app — Next.js storefront, FastAPI backend, PostgreSQL.
 | Service  | Local URL                    | Stack                                 |
 | -------- | ---------------------------- | ------------------------------------- |
 | frontend | http://localhost:3000        | Next.js 16 / React 19 / Tailwind      |
-| backend  | http://localhost:8000/docs   | FastAPI / SQLAlchemy (async) / Alembic |
-| db       | `localhost:5432`             | PostgreSQL 17 (user/pass `miyao`)     |
+| backend  | http://localhost:8001/docs   | FastAPI / SQLAlchemy (async) / Alembic |
+| db       | `localhost:5433`             | PostgreSQL 17 (user/pass `miyao`)     |
 
 Ports can be changed in `.env` (copy `.env.example`).
 
