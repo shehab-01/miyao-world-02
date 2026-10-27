@@ -1,14 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatPrice } from "@/lib/format";
-import type { Product } from "@/lib/site-config";
+import PriceTag from "@/components/product/PriceTag";
+import { galleryImages, type ProductSummary } from "@/lib/catalog";
 
 type Props = {
-  product: Product;
+  product: ProductSummary;
   showInfo?: boolean;
 };
 
 export default function ProductCard({ product, showInfo = false }: Props) {
+  const image = galleryImages(product)[0];
+
   return (
     <Link
       href={`/product/${product.slug}`}
@@ -19,11 +21,12 @@ export default function ProductCard({ product, showInfo = false }: Props) {
         className="relative overflow-hidden bg-placeholder"
         style={{ aspectRatio: "1.625" }}
       >
-        {product.image && (
+        {image && (
           <Image
-            src={product.image}
+            src={image}
             alt={product.name}
             fill
+            unoptimized
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
@@ -34,12 +37,11 @@ export default function ProductCard({ product, showInfo = false }: Props) {
             <p className="text-[12px] leading-none tracking-[0.06em]">
               {product.name}
             </p>
-            <p className="mt-[19px] text-[11px] leading-none text-ink-muted line-through">
-              {formatPrice(product.price)}
-            </p>
-            <p className="mt-[6px] text-[11px] leading-none text-accent-blue">
-              {formatPrice(product.salePrice)}
-            </p>
+            <PriceTag
+              price={product.price}
+              salePrice={product.sale_price}
+              className="mt-[19px] flex flex-col gap-[6px] text-[11px] leading-none"
+            />
           </div>
         )}
       </div>
@@ -47,12 +49,12 @@ export default function ProductCard({ product, showInfo = false }: Props) {
       {showInfo && (
         <div className="mt-[14px] text-[13px]">
           <p className="tracking-[0.03em]">{product.name}</p>
-          <p className="mt-[6px] flex gap-[8px]">
-            <span className="text-ink-muted line-through">
-              {formatPrice(product.price)}
-            </span>
-            <span>{formatPrice(product.salePrice)}</span>
-          </p>
+          <PriceTag
+            price={product.price}
+            salePrice={product.sale_price}
+            className="mt-[6px] flex gap-[8px]"
+            saleClassName=""
+          />
         </div>
       )}
     </Link>

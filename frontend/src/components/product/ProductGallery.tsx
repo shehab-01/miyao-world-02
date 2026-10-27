@@ -1,45 +1,49 @@
-import Image from "next/image";
-import { Search } from "lucide-react";
-import type { Product } from "@/lib/site-config";
+"use client";
 
-export default function ProductGallery({ product }: { product: Product }) {
+import { useState } from "react";
+import Image from "next/image";
+import { galleryImages, type ProductSummary } from "@/lib/catalog";
+
+export default function ProductGallery({ product }: { product: ProductSummary }) {
+  const images = galleryImages(product);
+  const [active, setActive] = useState(0);
+
   return (
     <div>
       <div
         className="relative overflow-hidden bg-placeholder"
         style={{ aspectRatio: "1.625" }}
       >
-        {product.image && (
+        {images[active] && (
           <Image
-            src={product.image}
+            src={images[active]}
             alt={product.name}
             fill
             priority
+            unoptimized
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover"
           />
         )}
-        <span className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center gap-[6px] bg-black px-[14px] py-[6px] text-[12px] text-white">
-          <Search size={12} strokeWidth={2} />
-          마우스를 올려보세요.
-        </span>
       </div>
 
-      {product.images && product.images.length > 0 && (
-        <ul className="mt-[10px] flex gap-[10px]">
-          {product.images.map((src) => (
-            <li
-              key={src}
-              className="relative w-[80px] overflow-hidden bg-placeholder"
-              style={{ aspectRatio: "1" }}
-            >
-              <Image
-                src={src}
-                alt={product.name}
-                fill
-                sizes="80px"
-                className="object-cover"
-              />
+      {images.length > 1 && (
+        <ul className="mt-[10px] flex flex-wrap gap-[10px]">
+          {images.map((src, i) => (
+            <li key={`${i}-${src}`}>
+              <button
+                type="button"
+                aria-label={`이미지 ${i + 1}`}
+                aria-current={i === active}
+                onClick={() => setActive(i)}
+                onMouseEnter={() => setActive(i)}
+                className={`relative block w-[80px] overflow-hidden bg-placeholder ${
+                  i === active ? "" : "opacity-60 hover:opacity-100"
+                }`}
+                style={{ aspectRatio: "1" }}
+              >
+                <Image src={src} alt="" fill unoptimized sizes="80px" className="object-cover" />
+              </button>
             </li>
           ))}
         </ul>

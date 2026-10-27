@@ -1,0 +1,79 @@
+# Local development stack.
+#   docker compose up --build --watch
+# Frontend http://localhost:3000 (also serves /api/*) · API http://localhost:8000 (docs at /docs)
+
+name: miyao-world
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-miyao}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-miyao}
+      POSTGRES_DB: ${POSTGRES_DB:-miyao_world}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    environment:
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql://${POSTGRES_USER:-miyao}:${POSTGRES_PASSWORD:-miyao}@db:5432/${POSTGRES_DB:-miyao_world}
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-3000}
+      PUBLIC_URL: http://localhost:${FRONTEND_PORT:-3000}
+      SECRET_KEY: ${SECRET_KEY:-local-dev-only-secret-do-not-use-in-prod}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      UPLOAD_DIR: /data/uploads
+      # Windows/macOS bind mounts don't emit file events; poll instead
+      WATCHFILES_FORCE_POLLING: "true"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Bind mount so code edits reload and `alembic revision` files land on the host
+      - ./backend:/app
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    environment:
+      # Next.js proxies /api/* here (see next.config.ts)
+      API_URL_INTERNAL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: sync
+          path: ./frontend/public
+          target: /app/public
+        - action: rebuild
+          path: ./frontend/package.json
+        - action: rebuild
+          path: ./frontend/next.config.ts
+
+volumes:
+  pgdata:
+  uploads:

@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import Logo from "@/components/common/Logo";
 import SiteNav from "@/components/layout/SiteNav";
+import type { Category } from "@/lib/catalog";
 
-export default function MobileHeader() {
+export default function MobileHeader({ categories }: { categories: Category[] }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function MobileHeader() {
               </button>
             </div>
             <div className="mt-[20px]">
-              <SiteNav onNavigate={() => setOpen(false)} />
+              <SiteNav categories={categories} onNavigate={() => setOpen(false)} />
             </div>
           </div>
         </div>

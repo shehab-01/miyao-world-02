@@ -1,18 +1,33 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Key, Lock, Search, User } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import SocialButtons from "@/components/auth/SocialButtons";
+import { login } from "@/lib/auth";
+
+// ?error= codes set by the backend's Kakao / Naver callback
+const socialErrors: Record<string, string> = {
+  cancelled: "로그인이 취소되었습니다.",
+  expired: "로그인 시간이 만료되었습니다. 다시 시도해 주세요.",
+  failed: "소셜 로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+  inactive: "이용이 제한된 계정입니다. 고객센터로 문의해 주세요.",
+  not_configured: "소셜 로그인 준비 중입니다. 아이디로 로그인해 주세요.",
+};
 
 function Field({
   icon,
   type,
   placeholder,
+  value,
+  onChange,
 }: {
   icon: React.ReactNode;
   type: string;
   placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
 }) {
   return (
     <div className="flex h-[30px] items-center border border-hairline">
@@ -24,20 +39,36 @@ function Field({
         aria-label={placeholder}
         placeholder={placeholder}
         autoComplete={type === "password" ? "current-password" : "username"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="h-full w-full px-[14px] text-[12.5px] tracking-[0.05em] outline-none placeholder:text-ink"
       />
     </div>
   );
 }
 
-export default function LoginForm() {
-  const { login } = useAuth();
+export default function LoginForm({ errorCode, next }: { errorCode?: string; next: string }) {
   const router = useRouter();
+  const [loginId, setLoginId] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(errorCode ? (socialErrors[errorCode] ?? "") : "");
+  const [submitting, setSubmitting] = useState(false);
 
-  // TODO: replace with the real sign-in call once the auth API exists
-  const signIn = () => {
-    login();
-    router.push("/");
+  const signIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginId.trim() || !password) {
+      setError("아이디와 비밀번호를 입력해 주세요.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await login(loginId, password);
+      router.push(next);
+    } catch (err) {
+      setError((err as Error).message);
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -47,53 +78,47 @@ export default function LoginForm() {
           MEMBER LOGIN
         </h2>
 
-        <div className="mt-[64px] space-y-[5px]">
-          <Field
-            icon={<User size={13} fill="currentColor" strokeWidth={0} />}
-            type="text"
-            placeholder="ID"
-          />
-          <Field
-            icon={<Lock size={13} fill="currentColor" strokeWidth={0} />}
-            type="password"
-            placeholder="PASSWORD"
-          />
+        <form onSubmit={signIn} noValidate>
+          <div className="mt-[64px] space-y-[5px]">
+            <Field
+              icon={<User size={13} fill="currentColor" strokeWidth={0} />}
+              type="text"
+              placeholder="ID"
+              value={loginId}
+              onChange={setLoginId}
+            />
+            <Field
+              icon={<Lock size={13} fill="currentColor" strokeWidth={0} />}
+              type="password"
+              placeholder="PASSWORD"
+              value={password}
+              onChange={setPassword}
+            />
+          </div>
+
+          <p className="mt-[13px] flex items-center gap-[5px] text-[12px]">
+            <Lock size={12} strokeWidth={2} className="text-[#e8643c]" />
+            보안접속
+          </p>
+
+          {error && (
+            <p role="alert" className="mt-[10px] text-[12.5px] text-[#f0736b]">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-[13px] w-full bg-ink py-[13px] text-[13px] leading-none tracking-[0.1em] text-white hover:opacity-85 disabled:opacity-50"
+          >
+            LOGIN
+          </button>
+        </form>
+
+        <div className="mt-[10px]">
+          <SocialButtons action="로그인" next={next} />
         </div>
-
-        <p className="mt-[13px] flex items-center gap-[5px] text-[12px]">
-          <Lock size={12} strokeWidth={2} className="text-[#e8643c]" />
-          보안접속
-        </p>
-
-        <button
-          type="button"
-          onClick={signIn}
-          className="mt-[13px] w-full bg-ink py-[13px] text-[13px] leading-none tracking-[0.1em] text-white hover:opacity-85"
-        >
-          LOGIN
-        </button>
-
-        <ul className="mt-[10px] space-y-[5px] text-[13px]">
-          {[
-            { id: "kakao", label: "카카오 로그인", style: { backgroundColor: "#FEE500", color: "#191600" } },
-            { id: "naver", label: "네이버 로그인", style: { backgroundColor: "#03C75A", color: "#ffffff" } },
-            {
-              id: "google",
-              label: "Google 로그인",
-              style: { backgroundColor: "#ffffff", color: "#3c4043", border: "1px solid #dadce0" },
-            },
-          ].map((provider) => (
-            <li key={provider.id}>
-              <button
-                type="button"
-                className="w-full py-[12px] text-[13px] leading-none hover:opacity-85"
-                style={provider.style}
-              >
-                {provider.label}
-              </button>
-            </li>
-          ))}
-        </ul>
 
         <div className="mt-[24px] flex items-start justify-between gap-[16px]">
           <p className="text-[12.5px] leading-[1.3]">

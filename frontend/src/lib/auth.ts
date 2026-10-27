@@ -1,46 +1,71 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { apiFetch, apiPost } from "@/lib/api";
 
-// TODO: replace with the real session once the auth API exists.
-// Only the internals of this file should change — components read `useAuth()`.
-const STORAGE_KEY = "miyao-auth";
+export type SocialProvider = "kakao" | "naver";
 
+export type User = {
+  id: number;
+  login_id: string | null;
+  name: string;
+  email: string;
+  mobile: string | null;
+  mileage: number;
+  providers: SocialProvider[];
+};
+
+type AuthState = { user: User | null; loaded: boolean };
+
+const initialState: AuthState = { user: null, loaded: false };
+let state = initialState;
 let listeners: (() => void)[] = [];
+let started = false;
 
-function read() {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
+function setUser(user: User | null) {
+  state = { user, loaded: true };
+  listeners.forEach((notify) => notify());
 }
 
-function write(value: boolean) {
+export async function refreshAuth() {
   try {
-    if (value) localStorage.setItem(STORAGE_KEY, "1");
-    else localStorage.removeItem(STORAGE_KEY);
+    // null for guests
+    setUser(await apiFetch<User | null>("/api/auth/me", { cache: "no-store" }));
   } catch {
-    // private mode — the session just won't persist
+    setUser(null);
   }
-  listeners.forEach((notify) => notify());
 }
 
 function subscribe(notify: () => void) {
   listeners.push(notify);
-  window.addEventListener("storage", notify);
+  if (!started) {
+    started = true;
+    void refreshAuth();
+  }
   return () => {
     listeners = listeners.filter((l) => l !== notify);
-    window.removeEventListener("storage", notify);
   };
 }
 
-export function useAuth() {
-  const isLoggedIn = useSyncExternalStore(subscribe, read, () => false);
+export async function login(loginId: string, password: string) {
+  setUser(await apiPost<User>("/api/auth/login", { login_id: loginId, password }));
+}
 
-  return {
-    isLoggedIn,
-    login: () => write(true),
-    logout: () => write(false),
-  };
+export async function register(payload: Record<string, unknown>) {
+  setUser(await apiPost<User>("/api/auth/register", payload));
+}
+
+export async function completeSocialSignup(payload: Record<string, unknown>) {
+  setUser(await apiPost<User>("/api/auth/social/complete", payload));
+}
+
+async function logout() {
+  await apiPost("/api/auth/logout");
+  setUser(null);
+}
+
+export function useAuth() {
+  const { user, loaded } = useSyncExternalStore(subscribe, () => state, () => initialState);
+
+  return { user, loaded, isLoggedIn: user !== null, logout };
 }

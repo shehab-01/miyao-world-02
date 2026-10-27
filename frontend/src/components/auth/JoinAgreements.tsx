@@ -1,14 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { joinAgreeAllLabel, joinAgreements } from "@/lib/site-config";
+import type { Checks } from "@/lib/join";
+import { joinAgeCheck, joinAgreeAllLabel, joinAgreements } from "@/lib/site-config";
 
-const allIds = joinAgreements.flatMap((section) =>
-  section.checks.map((check) => check.id),
-);
+const allIds = [
+  joinAgeCheck.id,
+  ...joinAgreements.flatMap((section) => section.checks.map((check) => check.id)),
+];
 
-export default function JoinAgreements() {
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+const checkboxClass = "h-[14px] w-[14px] accent-ink";
+
+export default function JoinAgreements({
+  checked,
+  onChange,
+}: {
+  checked: Checks;
+  onChange: (checked: Checks) => void;
+}) {
   const allChecked = allIds.every((id) => checked[id]);
 
   return (
@@ -16,19 +24,26 @@ export default function JoinAgreements() {
       <h2 className="text-[14px]">전체 동의</h2>
 
       <div className="mt-[14px] border border-hairline">
-        <div className="px-[24px] py-[20px]">
+        <div className="space-y-[12px] px-[24px] py-[20px]">
           <label className="flex items-center gap-[10px] text-[13px] font-bold">
             <input
               type="checkbox"
               checked={allChecked}
               onChange={(e) =>
-                setChecked(
-                  Object.fromEntries(allIds.map((id) => [id, e.target.checked])),
-                )
+                onChange(Object.fromEntries(allIds.map((id) => [id, e.target.checked])))
               }
-              className="h-[14px] w-[14px] accent-ink"
+              className={checkboxClass}
             />
             {joinAgreeAllLabel}
+          </label>
+          <label className="flex items-center gap-[10px] text-[13px]">
+            <input
+              type="checkbox"
+              checked={checked[joinAgeCheck.id] ?? false}
+              onChange={(e) => onChange({ ...checked, [joinAgeCheck.id]: e.target.checked })}
+              className={checkboxClass}
+            />
+            {joinAgeCheck.label}
           </label>
         </div>
 
@@ -55,10 +70,8 @@ export default function JoinAgreements() {
                   <input
                     type="checkbox"
                     checked={checked[check.id] ?? false}
-                    onChange={(e) =>
-                      setChecked({ ...checked, [check.id]: e.target.checked })
-                    }
-                    className="h-[14px] w-[14px] accent-ink"
+                    onChange={(e) => onChange({ ...checked, [check.id]: e.target.checked })}
+                    className={checkboxClass}
                   />
                   동의함
                 </label>

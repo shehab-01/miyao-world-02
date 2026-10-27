@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import { Caveat, Lato, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
-import MobileHeader from "@/components/layout/MobileHeader";
-import Footer from "@/components/layout/Footer";
-import ScrollNav from "@/components/layout/ScrollNav";
 
 const lato = Lato({
   subsets: ["latin"],
@@ -39,17 +35,7 @@ export default function RootLayout({
       lang="ko"
       className={`${lato.variable} ${playfair.variable} ${caveat.variable}`}
     >
-      <body className="antialiased">
-        <MobileHeader />
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="min-w-0 flex-1 px-[20px] pt-[20px] lg:pl-0 lg:pr-[var(--content-gutter)] lg:pt-[var(--content-top)]">
-            <main>{children}</main>
-            <Footer />
-          </div>
-        </div>
-        <ScrollNav />
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

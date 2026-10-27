@@ -32,3 +32,10 @@ npm-debug.log*
 # -----------------
 .DS_Store
 Thumbs.db
+# env files (examples are committed)
+.env.*
+!.env.example
+!.env.prod.example
+
+# local uploads when running the backend outside Docker
+backend/uploads/

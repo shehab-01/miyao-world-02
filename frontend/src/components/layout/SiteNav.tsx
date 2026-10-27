@@ -2,17 +2,29 @@
 
 import Link from "next/link";
 import { Facebook, Instagram, Search, Twitter } from "lucide-react";
-import BookmarkButton from "@/components/common/BookmarkButton";
 import { useAuth } from "@/lib/auth";
-import {
-  primaryNav,
-  secondaryNav,
-  socialLinks,
-  utilityNav,
-} from "@/lib/site-config";
+import type { Category } from "@/lib/catalog";
+import { secondaryNav, socialLinks, utilityNav, type NavItem } from "@/lib/site-config";
 
-export default function SiteNav({ onNavigate }: { onNavigate?: () => void }) {
+export default function SiteNav({
+  categories,
+  onNavigate,
+}: {
+  categories: Category[];
+  onNavigate?: () => void;
+}) {
   const { isLoggedIn, logout } = useAuth();
+  // SHOP's submenu lists the categories managed in /admin/categories
+  const primaryNav: NavItem[] = [
+    {
+      label: "SHOP",
+      href: categories[0] ? `/shop/${categories[0].slug}` : "/",
+      children: categories.map((category) => ({
+        label: category.name,
+        href: `/shop/${category.slug}`,
+      })),
+    },
+  ];
 
   return (
     <>
@@ -22,9 +34,7 @@ export default function SiteNav({ onNavigate }: { onNavigate?: () => void }) {
             {row.map((item, j) => (
               <span key={item.label} className="flex gap-[6px]">
                 {j > 0 && <span aria-hidden>/</span>}
-                {item.action === "bookmark" ? (
-                  <BookmarkButton label={item.label} />
-                ) : item.action === "logout" ? (
+                {item.action === "logout" ? (
                   <button
                     type="button"
                     onClick={() => {

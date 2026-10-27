@@ -2,9 +2,9 @@ import ProductGallery from "@/components/product/ProductGallery";
 import ProductInfo from "@/components/product/ProductInfo";
 import ProductDetailSection from "@/components/product/ProductDetailSection";
 import ProductBoard from "@/components/product/ProductBoard";
-import type { Product } from "@/lib/site-config";
+import type { ProductDetail } from "@/lib/catalog";
 
-export default function ProductView({ product }: { product: Product }) {
+export default function ProductView({ product }: { product: ProductDetail }) {
   return (
     <>
       <div className="grid gap-[60px] lg:grid-cols-[1.05fr_1fr]">
@@ -12,7 +12,7 @@ export default function ProductView({ product }: { product: Product }) {
         <ProductInfo product={product} />
       </div>
 
-      <ProductDetailSection detail={product.detail} />
+      <ProductDetailSection product={product} />
 
       <ProductBoard
         id="prdReview"

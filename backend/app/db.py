@@ -1,26 +1,25 @@
-import os
-from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from collections.abc import AsyncIterator
+
+from sqlalchemy import MetaData
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
-load_dotenv()
+from app.config import get_settings
 
-# psycopg v3 async driver — note the +psycopg prefix
-DATABASE_URL = os.getenv("DATABASE_URL", "").replace(
-    "postgresql://", "postgresql+psycopg://"
-)
+settings = get_settings()
 
 # NullPool is required for Neon (serverless Postgres).
 # Neon closes idle connections aggressively, which causes
 # "SSL connection closed unexpectedly" errors when SQLAlchemy's
 # internal pool hands out a stale connection. NullPool opens a
 # fresh connection per request and lets Neon's own PgBouncer
-# handle pooling on its side.
+# handle pooling on its side. Local Postgres uses the normal pool.
 engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    poolclass=NullPool,
+    settings.async_database_url,
+    echo=settings.db_echo,
+    pool_pre_ping=True,
+    **({"poolclass": NullPool} if settings.db_null_pool else {}),
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -31,11 +30,20 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 class Base(DeclarativeBase):
-    pass
+    # Deterministic constraint names so Alembic migrations stay stable.
+    metadata = MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "uq_%(table_name)s_%(column_0_name)s",
+            "ck": "ck_%(table_name)s_%(constraint_name)s",
+            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+            "pk": "pk_%(table_name)s",
+        }
+    )
 
 
 # Dependency for FastAPI routes
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncIterator[AsyncSession]:
     async with AsyncSessionLocal() as session:
         try:
             yield session

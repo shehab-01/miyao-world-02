@@ -2,13 +2,7 @@ import { marketingNotice, privacyNotice, termsOfService } from "@/lib/legal";
 export type UtilityNavItem = {
   label: string;
   href: string;
-  action?: "bookmark" | "logout";
-};
-
-const bookmark: UtilityNavItem = {
-  label: "BOOKMARK",
-  href: "/bookmark",
-  action: "bookmark",
+  action?: "logout";
 };
 
 const accountRow: UtilityNavItem[] = [
@@ -19,12 +13,11 @@ const accountRow: UtilityNavItem[] = [
 
 export const utilityNav = {
   guest: [
-    [bookmark, { label: "LOGIN", href: "/login" }, { label: "JOIN", href: "/join" }],
+    [{ label: "LOGIN", href: "/login" }, { label: "JOIN", href: "/join" }],
     accountRow,
   ] as UtilityNavItem[][],
   member: [
     [
-      bookmark,
       { label: "LOGOUT", href: "/", action: "logout" },
       { label: "EDIT", href: "/mypage/profile" },
     ],
@@ -38,29 +31,8 @@ export type NavItem = {
   children?: { label: string; href: string }[];
 };
 
-export const shopCategories = [
-  { slug: "miao-world", label: "Miyao world", productName: "MIYAO WORLD" },
-  { slug: "t-shirts", label: "T-Shirts", productName: "T-SHIRT" },
-  { slug: "sweatshirts", label: "Sweatshirts", productName: "SWEATSHIRT" },
-  { slug: "hoodie", label: "Hoodie", productName: "HOODIE" },
-  { slug: "bottoms", label: "Bottoms", productName: "BOTTOMS" },
-  { slug: "outers", label: "Outers", productName: "OUTER" },
-  { slug: "acc", label: "Acc", productName: "ACC" },
-];
-
-export const primaryNav: NavItem[] = [
-  { label: "ABOUT US", href: "/about" },
-  {
-    label: "SHOP",
-    href: "/shop",
-    children: shopCategories.map((category) => ({
-      label: category.label,
-      href: `/shop/${category.slug}`,
-    })),
-  },
-];
-
 export const secondaryNav: NavItem[] = [
+  { label: "ABOUT US", href: "/about" },
   { label: "CS CENTER", href: "/cs-center" },
   { label: "BANK ACCOUNT", href: "/bank-account" },
   { label: "DELIVERY", href: "/delivery" },
@@ -94,74 +66,7 @@ export const company = {
   copyright: "미야오월드",
 };
 
-export type SizeGuide = { title: string; lines: string[] };
-
-export type Product = {
-  slug: string;
-  category: string;
-  name: string;
-  price: number;
-  salePrice: number;
-  image?: string;
-  images?: string[];
-  shipping: string[];
-  minimumOrder: number;
-  detail: {
-    note?: string;
-    images: string[];
-    sizeGuide: SizeGuide[];
-    material?: string;
-  };
-};
-
-const sampleDetail: Product["detail"] = {
-  images: [],
-  sizeGuide: [
-    {
-      title: "[S Size]",
-      lines: [
-        "Length 68cm / Shoulder Length 56cm",
-        "Chest 64cm / Sleeve Length 26cm",
-      ],
-    },
-    {
-      title: "[M Size]",
-      lines: [
-        "Length 70cm / Shoulder Length 61cm",
-        "Chest 69cm / Sleeve Length 27cm",
-      ],
-    },
-  ],
-  material: "Polyester 96 Span 4",
-};
-
-// TODO: replace with data from the API
-export const products: Product[] = shopCategories.flatMap((category) =>
-  Array.from({ length: 4 }, (_, index) => ({
-    category: category.slug,
-    slug: `${category.slug}-${index + 1}`,
-    name: `${category.productName} ${String(index + 1).padStart(2, "0")}`,
-    price: 63000,
-    salePrice: 1,
-    shipping: ["국내배송", "택배", "2,500원 (50,000원 이상 구매 시 무료)"],
-    minimumOrder: 1,
-    detail: sampleDetail,
-  })),
-);
-
-export const featuredProducts: Product[] = products.slice(0, 1);
-
-export function getProductBySlug(slug: string) {
-  return products.find((product) => product.slug === slug);
-}
-
-export function getProductsByCategory(category: string) {
-  return products.filter((product) => product.category === category);
-}
-
-export function getCategory(slug: string) {
-  return shopCategories.find((category) => category.slug === slug);
-}
+export const productShipping = ["국내배송", "택배", "2,500원 (50,000원 이상 구매 시 무료)"];
 
 export type JoinField = {
   id: string;
@@ -192,6 +97,15 @@ export const joinFields: JoinField[] = [
 ];
 
 export const mobilePrefixes = ["010", "011", "016", "017", "018", "019"];
+
+export const socialProviders = [
+  { id: "kakao", name: "카카오", style: { backgroundColor: "#FEE500", color: "rgba(0, 0, 0, 0.85)" } },
+  { id: "naver", name: "네이버", style: { backgroundColor: "#03C75A", color: "#ffffff" } },
+] as const;
+
+export const joinAgeCheck = { id: "over14", label: "[필수] 만 14세 이상입니다." };
+
+export const requiredAgreementIds = ["service", "privacy", joinAgeCheck.id];
 
 export const joinAgreeAllLabel =
   "이용약관 및 개인정보수집 및 이용, 쇼핑정보 수신(선택)에 모두 동의합니다.";

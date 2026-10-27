@@ -1,16 +1,17 @@
 import HeroSlider from "@/components/home/HeroSlider";
-import ProductCard from "@/components/product/ProductCard";
-import { featuredProducts, heroSlides } from "@/lib/site-config";
+import CategorySection from "@/components/home/CategorySection";
+import { getHomeSections } from "@/lib/catalog";
+import { heroSlides } from "@/lib/site-config";
 
-export default function Home() {
+export default async function Home() {
+  const sections = await getHomeSections();
+
   return (
     <>
       <HeroSlider slides={heroSlides} />
-      <div className="mt-[30px] grid grid-cols-1 gap-[30px] sm:grid-cols-2">
-        {featuredProducts.map((product) => (
-          <ProductCard key={product.slug} product={product} />
-        ))}
-      </div>
+      {sections.map((section) => (
+        <CategorySection key={section.category.slug} section={section} />
+      ))}
     </>
   );
 }

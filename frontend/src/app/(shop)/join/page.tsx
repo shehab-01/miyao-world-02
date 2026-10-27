@@ -1,6 +1,6 @@
 import PageTitle from "@/components/common/PageTitle";
-import JoinFields from "@/components/auth/JoinFields";
-import JoinAgreements from "@/components/auth/JoinAgreements";
+import JoinForm from "@/components/auth/JoinForm";
+import SocialButtons from "@/components/auth/SocialButtons";
 
 export const metadata = {
   title: "JOIN | MIYAO WORLD",
@@ -11,21 +11,15 @@ export default function JoinPage() {
     <>
       <PageTitle>Join</PageTitle>
 
-      <div className="mt-[80px]">
-        <JoinFields />
-      </div>
+      <section className="mx-auto mt-[80px] max-w-[328px]">
+        <h2 className="text-center text-[13px]">SNS 계정으로 간편하게 가입하기</h2>
+        <div className="mt-[16px]">
+          <SocialButtons action="로 시작하기" />
+        </div>
+      </section>
 
       <div className="mt-[60px]">
-        <JoinAgreements />
-      </div>
-
-      <div className="mt-[40px] flex justify-center">
-        <button
-          type="button"
-          className="w-[150px] bg-ink py-[11px] text-[13px] leading-none text-white hover:opacity-85"
-        >
-          회원가입
-        </button>
+        <JoinForm />
       </div>
     </>
   );
