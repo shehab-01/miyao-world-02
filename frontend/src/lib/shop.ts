@@ -95,6 +95,42 @@ export const getOrderStatusCounts = () => apiFetch<Record<OrderStatus, number>>(
 export const getOrder = (number: string) => apiFetch<Order>(`/api/orders/${encodeURIComponent(number)}`, noStore);
 export const cancelOrder = (number: string) => apiPost<Order>(`/api/orders/${encodeURIComponent(number)}/cancel`);
 
+/** 배송 주소록 entry. Lists come back default first, then newest. */
+export type Address = {
+  id: number;
+  label: string;
+  recipient_name: string;
+  recipient_mobile: string;
+  postal_code: string;
+  address1: string;
+  address2: string | null;
+  is_default: boolean;
+};
+
+export type AddressInput = Omit<Address, "id">;
+
+// Every change returns the member's whole list again
+export const getAddresses = () => apiFetch<Address[]>("/api/addresses", noStore);
+export const createAddress = (address: AddressInput) => apiPost<Address[]>("/api/addresses", address);
+export const updateAddress = (id: number, address: AddressInput) =>
+  apiFetch<Address[]>(`/api/addresses/${id}`, { method: "PUT", body: JSON.stringify(address) });
+export const setDefaultAddress = (id: number) => apiPost<Address[]>(`/api/addresses/${id}/default`);
+export const deleteAddress = (id: number) => apiFetch<Address[]>(`/api/addresses/${id}`, { method: "DELETE" });
+
+export const formatAddress = (a: { postal_code: string; address1: string; address2: string | null }) =>
+  `(${a.postal_code}) ${a.address1}${a.address2 ? ` ${a.address2}` : ""}`;
+
+/** "01012345678" → "010-1234-5678" while typing. */
+export function formatMobile(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  const middle = digits.length === 11 ? 4 : 3;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 3 + middle)}-${digits.slice(3 + middle)}`;
+}
+
+export const mobilePattern = /^01[016789]-\d{3,4}-\d{4}$/;
+
 // The checkout page gets its items in the URL: /order/checkout?items=133-2,136-1(&from=cart)
 export function checkoutHref(items: LineInput[], fromCart = false) {
   const list = items.map((item) => `${item.variant_id}-${item.quantity}`).join(",");

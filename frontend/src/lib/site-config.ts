@@ -54,9 +54,11 @@ export const footerNav = [
 ];
 
 export const company = {
-  tel: "010-7527-1673",
-  bank: "신한은행 110-498-133973",
-  accountHolder: "Miyaoworld",
+  // Hidden for now: empty values aren't shown anywhere on the site. Format when they're
+  // back: tel "02-000-0000", bank "신한은행 110-000-000000" (also set BANK_ACCOUNT on the backend)
+  tel: "",
+  bank: "",
+  accountHolder: "",
   name: "미야오 월드 (Miyao world)",
   owner: "최수정",
   address: "서울 용산구 회나무로 12가길 13-4 /3",
@@ -137,6 +139,7 @@ export const myPageMenu = [
   { label: "최근 본 상품", href: "/mypage/recent" },
   { label: "쿠폰", href: "/mypage/coupon" },
   { label: "적립금", href: "/mypage/mileage" },
+  { label: "배송 주소록 관리", href: "/mypage/address" },
   { label: "회원정보 수정", href: "/mypage/profile" },
 ];
 
@@ -185,6 +188,9 @@ export const deliveryInfo = {
 };
 
 export const bankAccountInfo = {
+  // False while the account is hidden; pages then say it's sent after the order
+  shown: Boolean(company.bank),
+  pendingNotice: "입금 계좌는 주문 확인 후 따로 안내해 드립니다.",
   bankName: company.bank.split(" ")[0],
   accountNumber: company.bank.split(" ").slice(1).join(" "),
   accountHolder: company.accountHolder,

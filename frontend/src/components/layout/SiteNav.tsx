@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Facebook, Instagram, Search, Twitter } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { Category } from "@/lib/catalog";
-import { secondaryNav, socialLinks, utilityNav, type NavItem } from "@/lib/site-config";
+import { bankAccountInfo, secondaryNav, socialLinks, utilityNav, type NavItem } from "@/lib/site-config";
 
 export default function SiteNav({
   categories,
@@ -87,7 +87,8 @@ export default function SiteNav({
         </ul>
 
         <ul className="mt-[50px] space-y-[17px]">
-          {secondaryNav.map((item) => (
+          {/* No BANK ACCOUNT page while the account is hidden */}
+          {secondaryNav.filter((item) => item.href !== "/bank-account" || bankAccountInfo.shown).map((item) => (
             <li key={item.label}>
               <Link
                 href={item.href}

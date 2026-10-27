@@ -1,4 +1,5 @@
 # Import every model here so Alembic autogenerate sees the full metadata.
+from app.models.address import Address
 from app.models.admin import Admin
 from app.models.catalog import Category, Product, ProductImage, ProductImageKind, ProductVariant
 from app.models.order import Order, OrderItem, OrderStatus
@@ -7,6 +8,7 @@ from app.models.site import SiteSetting
 from app.models.user import SocialAccount, SocialProvider, User
 
 __all__ = [
+    "Address",
     "Admin",
     "CartItem",
     "Category",

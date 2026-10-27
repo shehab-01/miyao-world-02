@@ -5,15 +5,27 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import AddressSearch from "@/components/order/AddressSearch";
+import AddressFields, { inputClass } from "@/components/order/AddressFields";
+import { Row, Section } from "@/components/order/FormRows";
 import OrderItemsTable from "@/components/order/OrderItemsTable";
 import { useRequireLogin, type User } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
-import { getQuote, placeOrder, type Basket, type LineInput } from "@/lib/shop";
+import {
+  createAddress,
+  formatAddress,
+  formatMobile,
+  getAddresses,
+  getQuote,
+  mobilePattern,
+  placeOrder,
+  type Address,
+  type Basket,
+  type LineInput,
+} from "@/lib/shop";
 import { bankAccountInfo } from "@/lib/site-config";
 
-const inputClass = "h-[32px] border border-hairline px-[10px] text-[12.5px] outline-none focus:border-ink-muted";
-const smallButtonClass = "h-[32px] shrink-0 border border-hairline px-[14px] text-[12px] leading-none hover:bg-muted";
+const MAX_ADDRESSES = 10;
+const NEW_ADDRESS = "new";
 
 const deliveryMessages = [
   "부재 시 문 앞에 놓아주세요.",
@@ -22,17 +34,6 @@ const deliveryMessages = [
   "택배함에 넣어 주세요.",
 ];
 const CUSTOM_MESSAGE = "custom";
-
-/** "01012345678" → "010-1234-5678" while typing. */
-function formatMobile(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length < 4) return digits;
-  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  const middle = digits.length === 11 ? 4 : 3;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 3 + middle)}-${digits.slice(3 + middle)}`;
-}
-
-const mobilePattern = /^01[016789]-\d{3,4}-\d{4}$/;
 
 type Fields = {
   ordererName: string;
@@ -48,28 +49,15 @@ type Fields = {
   depositorName: string;
 };
 
-function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col border-b border-hairline sm:flex-row">
-      <div className="shrink-0 px-[18px] pt-[12px] text-[12.5px] text-ink-soft sm:w-[150px] sm:py-[14px]">
-        {label}
-        {required && <span className="ml-[3px] text-[#f0736b]">*</span>}
-      </div>
-      <div className="min-w-0 flex-1 px-[18px] py-[10px] text-[12.5px]">{children}</div>
-    </div>
-  );
-}
-
-function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section className="mt-[50px]">
-      <div className="mb-[12px] flex items-end justify-between">
-        <h2 className="text-[14px] text-ink-soft">{title}</h2>
-        {aside}
-      </div>
-      <div className="border-t border-ink">{children}</div>
-    </section>
-  );
+/** The recipient half of the form, filled from a saved address or left blank for a new one. */
+function recipientFields(address: Address | undefined) {
+  return {
+    recipientName: address?.recipient_name ?? "",
+    recipientMobile: address?.recipient_mobile ?? "",
+    postalCode: address?.postal_code ?? "",
+    address1: address?.address1 ?? "",
+    address2: address?.address2 ?? "",
+  };
 }
 
 function validate(f: Fields) {
@@ -86,6 +74,7 @@ function validate(f: Fields) {
 export default function CheckoutForm({ items, fromCart }: { items: LineInput[]; fromCart: boolean }) {
   const user = useRequireLogin();
   const [basket, setBasket] = useState<Basket | null>(null);
+  const [addresses, setAddresses] = useState<Address[] | null>(null);
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
@@ -93,6 +82,10 @@ export default function CheckoutForm({ items, fromCart }: { items: LineInput[]; 
     getQuote(items)
       .then(setBasket)
       .catch((err: Error) => setLoadError(err.message));
+    // Without the address book the order can still be placed with a typed address
+    getAddresses()
+      .then(setAddresses)
+      .catch(() => setAddresses([]));
   }, [user, items]);
 
   if (items.length === 0 || loadError) {
@@ -105,38 +98,44 @@ export default function CheckoutForm({ items, fromCart }: { items: LineInput[]; 
       </div>
     );
   }
-  if (!user || !basket) {
+  if (!user || !basket || !addresses) {
     return <p className="mt-[80px] text-center text-[13px] text-ink-muted">불러오는 중…</p>;
   }
-  return <OrderForm user={user} basket={basket} items={items} fromCart={fromCart} />;
+  return <OrderForm user={user} basket={basket} addresses={addresses} items={items} fromCart={fromCart} />;
 }
 
 function OrderForm({
   user,
   basket,
+  addresses,
   items,
   fromCart,
 }: {
   user: User;
   basket: Basket;
+  addresses: Address[];
   items: LineInput[];
   fromCart: boolean;
 }) {
   const router = useRouter();
-  // The orderer is the member; their details are filled in to start with
+  // The list comes default first
+  const defaultAddress = addresses.find((address) => address.is_default);
+  // A saved address's id, or NEW_ADDRESS
+  const [addressChoice, setAddressChoice] = useState<string>(
+    defaultAddress ? String(defaultAddress.id) : NEW_ADDRESS,
+  );
+  // The orderer is the member and the recipient their default address, to start with
   const [fields, setFields] = useState<Fields>({
     ordererName: user.name,
     ordererMobile: user.mobile ?? "",
     ordererEmail: user.email,
-    recipientName: "",
-    recipientMobile: "",
-    postalCode: "",
-    address1: "",
-    address2: "",
+    ...recipientFields(defaultAddress),
     messageChoice: "",
     customMessage: "",
     depositorName: user.name,
   });
+  // A new address goes into the address book after ordering; ticked for the very first one
+  const [saveAddress, setSaveAddress] = useState(addresses.length === 0);
   const [sameAsOrderer, setSameAsOrderer] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
@@ -150,12 +149,20 @@ function OrderForm({
   };
   const toggleSame = (checked: boolean) => {
     setSameAsOrderer(checked);
+    const saved = addresses.find((address) => String(address.id) === addressChoice);
     setFields({
       ...fields,
-      recipientName: checked ? fields.ordererName : "",
-      recipientMobile: checked ? fields.ordererMobile : "",
+      recipientName: checked ? fields.ordererName : (saved?.recipient_name ?? ""),
+      recipientMobile: checked ? fields.ordererMobile : (saved?.recipient_mobile ?? ""),
     });
   };
+  const chooseAddress = (choice: string) => {
+    setAddressChoice(choice);
+    setSameAsOrderer(false);
+    setFields({ ...fields, ...recipientFields(addresses.find((address) => String(address.id) === choice)) });
+  };
+  const newAddress = addressChoice === NEW_ADDRESS;
+  const canSaveAddress = newAddress && addresses.length < MAX_ADDRESSES;
 
   const blocked = basket.items.find((line) => line.problem);
   const deliveryMessage =
@@ -186,6 +193,18 @@ function OrderForm({
         depositor_name: fields.depositorName.trim(),
         agree_purchase: true,
       });
+      if (canSaveAddress && saveAddress) {
+        // The order is placed either way; a failed save only means typing it again next time
+        await createAddress({
+          label: fields.recipientName.trim().slice(0, 20),
+          recipient_name: fields.recipientName.trim(),
+          recipient_mobile: fields.recipientMobile,
+          postal_code: fields.postalCode,
+          address1: fields.address1.trim(),
+          address2: fields.address2.trim() || null,
+          is_default: false,
+        }).catch(() => undefined);
+      }
       router.replace(`/mypage/orders/${order.order_number}?done=1`);
     } catch (err) {
       setError((err as Error).message);
@@ -260,6 +279,45 @@ function OrderForm({
           </label>
         }
       >
+        {addresses.length > 0 && (
+          <Row label="배송지 선택">
+            <div role="radiogroup" aria-label="배송지 선택" className="flex flex-col gap-[8px] py-[4px]">
+              {addresses.map((address) => (
+                <label key={address.id} className="flex cursor-pointer items-start gap-[8px] leading-[1.6]">
+                  <input
+                    type="radio"
+                    name="address-choice"
+                    checked={addressChoice === String(address.id)}
+                    onChange={() => chooseAddress(String(address.id))}
+                    className="mt-[4px] h-[13px] w-[13px] shrink-0 accent-ink"
+                  />
+                  <span className="min-w-0">
+                    <span className="mr-[6px]">{address.label}</span>
+                    {address.is_default && (
+                      <span className="mr-[6px] border border-ink px-[5px] py-[2px] text-[10.5px] leading-none">기본</span>
+                    )}
+                    <span className="block break-keep text-[12px] text-ink-muted">
+                      {address.recipient_name} · {formatAddress(address)}
+                    </span>
+                  </span>
+                </label>
+              ))}
+              <label className="flex cursor-pointer items-center gap-[8px]">
+                <input
+                  type="radio"
+                  name="address-choice"
+                  checked={newAddress}
+                  onChange={() => chooseAddress(NEW_ADDRESS)}
+                  className="h-[13px] w-[13px] shrink-0 accent-ink"
+                />
+                새로운 배송지
+              </label>
+              <Link href="/mypage/address" target="_blank" className="self-start text-[12px] text-ink-muted underline hover:text-ink">
+                배송 주소록 관리
+              </Link>
+            </div>
+          </Row>
+        )}
         <Row label="받으시는 분" required>
           <input
             value={fields.recipientName}
@@ -269,36 +327,18 @@ function OrderForm({
           />
         </Row>
         <Row label="주소" required>
-          <div className="flex max-w-[480px] flex-col gap-[6px]">
-            <div className="flex gap-[6px]">
+          <AddressFields value={fields} onChange={set} />
+          {canSaveAddress && (
+            <label className="mt-[8px] flex items-center gap-[6px]">
               <input
-                value={fields.postalCode}
-                onChange={(e) => set({ postalCode: e.target.value.replace(/\D/g, "").slice(0, 5) })}
-                inputMode="numeric"
-                aria-label="우편번호"
-                placeholder="우편번호"
-                className={`${inputClass} w-[110px]`}
+                type="checkbox"
+                checked={saveAddress}
+                onChange={(e) => setSaveAddress(e.target.checked)}
+                className="h-[13px] w-[13px] accent-ink"
               />
-              <AddressSearch
-                onSelect={(postalCode, address1) => set({ postalCode, address1 })}
-                className={smallButtonClass}
-              />
-            </div>
-            <input
-              value={fields.address1}
-              onChange={(e) => set({ address1: e.target.value })}
-              aria-label="기본주소"
-              placeholder="기본주소"
-              className={`${inputClass} w-full`}
-            />
-            <input
-              value={fields.address2}
-              onChange={(e) => set({ address2: e.target.value })}
-              aria-label="나머지주소"
-              placeholder="나머지주소 (선택입력 가능)"
-              className={`${inputClass} w-full`}
-            />
-          </div>
+              배송 주소록에 저장{addresses.length === 0 && " (기본 배송지로 저장됩니다)"}
+            </label>
+          )}
         </Row>
         <Row label="휴대전화" required>
           <input
@@ -342,7 +382,9 @@ function OrderForm({
       <Section title="결제 정보">
         <Row label="결제수단">무통장입금</Row>
         <Row label="입금계좌">
-          {bankAccountInfo.bankName} {bankAccountInfo.accountNumber} (예금주: {bankAccountInfo.accountHolder})
+          {bankAccountInfo.shown
+            ? `${bankAccountInfo.bankName} ${bankAccountInfo.accountNumber} (예금주: ${bankAccountInfo.accountHolder})`
+            : bankAccountInfo.pendingNotice}
         </Row>
         <Row label="입금자명" required>
           <input

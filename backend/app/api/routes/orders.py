@@ -91,7 +91,7 @@ def _confirmation_mail(order: Order) -> tuple[str, str]:
         f"주문번호: {order.order_number}\n\n{lines}\n\n"
         f"상품금액 {order.items_total:,}원 + 배송비 {order.shipping_fee:,}원 = 결제금액 {order.total:,}원\n\n"
         "[무통장입금 안내]\n"
-        f"입금계좌: {settings.bank_account}\n"
+        f"입금계좌: {settings.bank_account or '주문 확인 후 따로 안내해 드립니다.'}\n"
         f"입금액: {order.total:,}원\n"
         f"입금자명: {order.depositor_name}\n"
         "주문 후 3일 이내 미입금 시 주문이 자동 취소됩니다.\n\n"

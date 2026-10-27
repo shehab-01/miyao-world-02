@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import PageTitle from "@/components/common/PageTitle";
 import { bankAccountInfo } from "@/lib/site-config";
 
@@ -6,6 +7,7 @@ export const metadata = {
 };
 
 export default function BankAccountPage() {
+  if (!bankAccountInfo.shown) notFound();
   return (
     <>
       <PageTitle>Bank Account</PageTitle>

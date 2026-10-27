@@ -15,11 +15,13 @@ export default function Footer() {
     <footer className="mt-[60px] pb-20 text-[12px] leading-[1.6] text-ink-soft lg:mt-[130px]">
       <div className="flex flex-col gap-10 lg:flex-row lg:justify-between">
         <div className="shrink-0">
-          <p>{company.tel}</p>
-          <div className="mt-[30px]">
-            <p>{company.bank}</p>
-            <p>Account holder : {company.accountHolder}</p>
-          </div>
+          {company.tel && <p className="mb-[30px]">{company.tel}</p>}
+          {company.bank && (
+            <div>
+              <p>{company.bank}</p>
+              <p>Account holder : {company.accountHolder}</p>
+            </div>
+          )}
         </div>
 
         <div className="lg:text-right">
@@ -35,7 +37,7 @@ export default function Footer() {
             <p className="flex flex-wrap gap-x-[22px] lg:justify-end">
               <Field label="COMPANY" value={company.name} />
               <Field label="OWNER" value={company.owner} />
-              <Field label="TEL" value={company.tel} />
+              {company.tel && <Field label="TEL" value={company.tel} />}
             </p>
             <p className="flex flex-wrap gap-x-[22px] lg:justify-end">
               <Field label="ADDRESS" value={company.address} />

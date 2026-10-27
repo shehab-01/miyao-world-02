@@ -75,10 +75,18 @@ export default function OrderDetail({ number, done }: { number: string; done: bo
 
       {awaitingPayment && (
         <section className={`${done ? "mt-[20px]" : "mt-[80px]"} border border-ink px-[24px] py-[28px] text-center`}>
-          <p className="text-[13px] text-ink-soft">아래 계좌로 입금해 주시면 주문이 확정됩니다.</p>
-          <p className="mt-[14px] text-[15px]">{bankAccountInfo.bankName}</p>
-          <p className="mt-[6px] text-[24px] leading-none tracking-[0.02em]">{bankAccountInfo.accountNumber}</p>
-          <p className="mt-[8px] text-[12.5px] text-ink-soft">예금주 : {bankAccountInfo.accountHolder}</p>
+          {bankAccountInfo.shown ? (
+            <>
+              <p className="text-[13px] text-ink-soft">아래 계좌로 입금해 주시면 주문이 확정됩니다.</p>
+              <p className="mt-[14px] text-[15px]">{bankAccountInfo.bankName}</p>
+              <p className="mt-[6px] text-[24px] leading-none tracking-[0.02em]">{bankAccountInfo.accountNumber}</p>
+              <p className="mt-[8px] text-[12.5px] text-ink-soft">예금주 : {bankAccountInfo.accountHolder}</p>
+            </>
+          ) : (
+            <p className="text-[13px] text-ink-soft">
+              {bankAccountInfo.pendingNotice} 입금이 확인되면 주문이 확정됩니다.
+            </p>
+          )}
           <p className="mt-[16px] text-[13px]">
             입금액 <strong className="text-[16px]">{formatPrice(order.total)}</strong>
             <span className="mx-[10px] text-ink-faint">|</span>

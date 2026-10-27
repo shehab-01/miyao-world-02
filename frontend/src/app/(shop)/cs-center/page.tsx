@@ -12,20 +12,24 @@ export default function CsCenterPage() {
       <PageTitle>CS Center</PageTitle>
 
       <section className="mt-[80px] border border-hairline">
-        <div className="flex flex-wrap items-center gap-x-[14px] px-[24px] py-[20px]">
-          <span className="text-[28px] leading-none tracking-[0.02em]">
-            {csCenterInfo.tel}
-          </span>
-        </div>
-        <div className="grid grid-cols-1 gap-y-[6px] border-t border-hairline px-[24px] py-[16px] text-[12.5px] text-ink-soft sm:grid-cols-3">
+        {csCenterInfo.tel && (
+          <div className="flex flex-wrap items-center gap-x-[14px] border-b border-hairline px-[24px] py-[20px]">
+            <span className="text-[28px] leading-none tracking-[0.02em]">
+              {csCenterInfo.tel}
+            </span>
+          </div>
+        )}
+        <div className="grid grid-cols-1 gap-y-[6px] px-[24px] py-[16px] text-[12.5px] text-ink-soft sm:grid-cols-3">
           <p>운영시간 {csCenterInfo.hours}</p>
           <p>점심시간 {csCenterInfo.lunch}</p>
           <p>{csCenterInfo.offDays}</p>
         </div>
-        <div className="border-t border-hairline px-[24px] py-[16px] text-[12.5px] text-ink-soft">
-          <p>{csCenterInfo.bank}</p>
-          <p>예금주 : {csCenterInfo.accountHolder}</p>
-        </div>
+        {csCenterInfo.bank && (
+          <div className="border-t border-hairline px-[24px] py-[16px] text-[12.5px] text-ink-soft">
+            <p>{csCenterInfo.bank}</p>
+            <p>예금주 : {csCenterInfo.accountHolder}</p>
+          </div>
+        )}
       </section>
 
       <section className="mt-[60px]">
