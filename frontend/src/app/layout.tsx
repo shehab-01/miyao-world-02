@@ -1,23 +1,31 @@
 import type { Metadata } from "next";
-import { Caveat, Lato, Playfair_Display } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const lato = Lato({
-  subsets: ["latin"],
+// Self-hosted (from @fontsource) so dev/build never needs to reach Google Fonts
+const lato = localFont({
+  src: [
+    { path: "./fonts/lato-latin-300-normal.woff2", weight: "300" },
+    { path: "./fonts/lato-latin-400-normal.woff2", weight: "400" },
+    { path: "./fonts/lato-latin-700-normal.woff2", weight: "700" },
+  ],
   variable: "--font-lato",
-  weight: ["300", "400", "700"],
 });
 
-const playfair = Playfair_Display({
-  subsets: ["latin"],
+const playfair = localFont({
+  src: [
+    { path: "./fonts/playfair-display-latin-400-normal.woff2", weight: "400" },
+    { path: "./fonts/playfair-display-latin-500-normal.woff2", weight: "500" },
+  ],
   variable: "--font-playfair",
-  weight: ["400", "500"],
 });
 
-const caveat = Caveat({
-  subsets: ["latin"],
+const caveat = localFont({
+  src: [
+    { path: "./fonts/caveat-latin-400-normal.woff2", weight: "400" },
+    { path: "./fonts/caveat-latin-600-normal.woff2", weight: "600" },
+  ],
   variable: "--font-caveat",
-  weight: ["400", "600"],
 });
 
 export const metadata: Metadata = {
